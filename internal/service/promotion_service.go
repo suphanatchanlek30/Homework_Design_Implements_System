@@ -10,6 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/dto"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/model"
+	"github.com/suphanatchanlek30/homework_design_implements_system/internal/promotion"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/repository"
 	"gorm.io/gorm"
 )
@@ -52,7 +53,7 @@ func (s *promotionService) Create(ctx context.Context, req dto.PromotionCreateRe
 	if err := validatePromotionBasic(req.Code, req.Scope, req.Priority, req.StartsAt, req.EndsAt); err != nil {
 		return nil, err
 	}
-	if err := validatePromotionConfig(req.Scope, req.Targets, req.Actions); err != nil {
+	if err := validatePromotionConfig(req.Scope, req.Targets, req.Conditions, req.Actions); err != nil {
 		return nil, err
 	}
 
@@ -138,7 +139,7 @@ func (s *promotionService) Replace(ctx context.Context, id uint64, req dto.Promo
 	if err := validatePromotionBasic(req.Code, req.Scope, req.Priority, req.StartsAt, req.EndsAt); err != nil {
 		return nil, err
 	}
-	if err := validatePromotionConfig(req.Scope, req.Targets, req.Actions); err != nil {
+	if err := validatePromotionConfig(req.Scope, req.Targets, req.Conditions, req.Actions); err != nil {
 		return nil, err
 	}
 
@@ -346,7 +347,7 @@ func validatePromotionBasic(code, scope string, priority int, startsAt, endsAt t
 	return nil
 }
 
-func validatePromotionConfig(scope string, targets []dto.PromotionTargetRequest, actions []dto.PromotionActionRequest) error {
+func validatePromotionConfig(scope string, targets []dto.PromotionTargetRequest, conditions []dto.PromotionConditionRequest, actions []dto.PromotionActionRequest) error {
 	if len(actions) == 0 {
 		return ErrInvalidPromotionConfig
 	}
@@ -356,6 +357,11 @@ func validatePromotionConfig(scope string, targets []dto.PromotionTargetRequest,
 	for _, action := range actions {
 		if !isSupportedAction(action.ActionType) {
 			return ErrActionStrategyNotSupported
+		}
+	}
+	for _, condition := range conditions {
+		if !isSupportedCondition(condition.ConditionType) {
+			return ErrInvalidPromotionConfig
 		}
 	}
 	if scope == "ITEM" {
@@ -389,6 +395,11 @@ func validatePromotionModel(promotion *model.Promotion) []string {
 	for _, action := range promotion.Actions {
 		if !isSupportedAction(action.ActionType) {
 			errs = append(errs, fmt.Sprintf("action strategy not supported: %s", action.ActionType))
+		}
+	}
+	for _, condition := range promotion.Conditions {
+		if !isSupportedCondition(condition.ConditionType) {
+			errs = append(errs, fmt.Sprintf("condition strategy not supported: %s", condition.ConditionType))
 		}
 	}
 	return errs
@@ -529,12 +540,21 @@ func isAllowedScope(scope string) bool {
 }
 
 func isSupportedAction(actionType string) bool {
-	switch actionType {
-	case "PERCENTAGE_DISCOUNT", "FIXED_AMOUNT_DISCOUNT", "CART_PERCENTAGE_DISCOUNT", "CART_FIXED_AMOUNT_DISCOUNT", "FREE_SHIPPING":
-		return true
-	default:
-		return false
+	for _, supported := range promotion.SupportedActionTypes() {
+		if supported == actionType {
+			return true
+		}
 	}
+	return false
+}
+
+func isSupportedCondition(conditionType string) bool {
+	for _, supported := range promotion.SupportedConditionTypes() {
+		if supported == conditionType {
+			return true
+		}
+	}
+	return false
 }
 
 func hasTargetType(targets []dto.PromotionTargetRequest, targetType string) bool {

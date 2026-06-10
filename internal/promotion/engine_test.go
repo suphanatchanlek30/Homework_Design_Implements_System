@@ -93,6 +93,37 @@ func TestCalculator_SkipsInactivePromotion(t *testing.T) {
 	assert.Equal(t, int64(100000), result.FinalTotal)
 }
 
+func TestCalculator_CustomRegisteredAction(t *testing.T) {
+	registry := NewRegistry()
+	registry.RegisterAction("LOYALTY_BONUS", func(input ActionContext) (int64, error) {
+		return 3000, nil
+	})
+
+	code := "LOYALTY"
+	calculator := NewCalculatorWithRegistry(registry)
+	result, err := calculator.Calculate(nil, CalculationContext{
+		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+		Items: []CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
+		Promotions: []model.Promotion{
+			{
+				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+				Code:      &code,
+				Name:      "Custom Action",
+				Scope:     "CART",
+				Status:    "ACTIVE",
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "CART"}},
+				Actions:   []model.PromotionAction{{ActionType: "LOYALTY_BONUS", AppliesTo: "CART"}},
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3000), result.DiscountTotal)
+	assert.Equal(t, int64(97000), result.FinalTotal)
+}
+
 func uint64Ptr(value uint64) *uint64 {
 	return &value
 }
@@ -104,4 +135,3 @@ func intPtr(value int) *int {
 func int64Ptr(value int64) *int64 {
 	return &value
 }
-
