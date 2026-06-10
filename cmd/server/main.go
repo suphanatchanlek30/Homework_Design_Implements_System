@@ -31,13 +31,16 @@ func main() {
 
 	// Repositories
 	categoryRepo := repository.NewCategoryRepository(db)
+	productRepo := repository.NewProductRepository(db)
 
 	// Services
 	categoryService := service.NewCategoryService(categoryRepo)
+	productService := service.NewProductService(productRepo, categoryRepo)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(db)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
+	productHandler := handler.NewProductHandler(productService)
 
 	apiV1 := app.Group("/api/v1")
 	apiV1.Get("/healthz", healthHandler.Healthz)
@@ -49,6 +52,13 @@ func main() {
 	categories.Get("/", categoryHandler.List)
 	categories.Get("/:categoryId", categoryHandler.GetByID)
 	categories.Patch("/:categoryId", categoryHandler.Update)
+
+	// Product Routes
+	products := apiV1.Group("/products")
+	products.Post("/", productHandler.Create)
+	products.Get("/", productHandler.List)
+	products.Get("/:productId", productHandler.GetByID)
+	products.Patch("/:productId", productHandler.Update)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
