@@ -270,13 +270,11 @@ Status: `200 OK`
 ```
 
 #### Postman tests ที่ควรลอง
-1. list log แบบไม่ filter หลังจากทำ `pricing/calculate` หรือ `orders/confirm`
-2. filter ด้วย `requestId` เดียวกับ request ที่ยิงไปก่อนหน้า
-3. filter ด้วย `orderId` เพื่อหาการคำนวณที่เกี่ยวกับ order นั้น
-4. filter ด้วย `userId` และ `promotionId`
-5. filter ด้วย date range ที่ครอบคลุมเหตุการณ์จริง
-6. ส่ง date range ผิดเพื่อดู `400`
-7. ตรวจว่า list response ไม่เปิด snapshot เต็ม เพราะข้อมูลนี้เป็น sensitive payload
+1. `GET /categories?page=1&limit=10`
+2. `GET /categories?status=ACTIVE`
+3. `GET /categories?keyword=Elect`
+4. `GET /categories?sort=name asc`
+5. `GET /categories?page=abc` เพื่อดู `400`
 
 #### Validation ที่โค้ดทำจริง
 - `page` ต้องเป็นตัวเลขและมากกว่า 0
@@ -1490,3 +1488,1024 @@ Status: `200 OK`
 - ตรวจ idempotency ของ confirm order
 - ตรวจ snapshot และ replay จาก audit log
 - ตรวจว่า list/detail/use-case แยก payload ตามหน้าที่
+
+---
+
+## 13) Request/Response Reference ตามโค้ดจริง
+
+ภาคผนวกนี้รวบรวมตัวอย่าง `request body`, `response body`, และ `error body` ที่อิงจาก DTO และ handler จริงของโปรเจกต์
+
+### 13.1 Health
+
+#### `GET /api/v1/healthz`
+- Request body: ไม่มี
+- Success `200 OK`
+```json
+{ "status": "UP" }
+```
+- Error: ไม่มีกรณี business error ใน handler นี้
+
+#### `GET /api/v1/readyz`
+- Request body: ไม่มี
+- Success `200 OK`
+```json
+{
+  "status": "READY",
+  "dependencies": {
+    "mysql": "UP"
+  }
+}
+```
+- Error `503 Service Unavailable`
+```json
+{
+  "status": "NOT_READY",
+  "dependencies": {
+    "mysql": "DOWN"
+  }
+}
+```
+
+### 13.2 Category
+
+#### `POST /api/v1/categories`
+- Request body
+```json
+{
+  "name": "Electronics",
+  "parentId": null,
+  "status": "ACTIVE"
+}
+```
+- Success `201 Created`
+```json
+{
+  "id": 1,
+  "name": "Electronics",
+  "parentId": null,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error body ตัวอย่าง
+```json
+{ "error": { "code": "CATEGORY_ALREADY_EXISTS", "message": "..." } }
+```
+
+#### `GET /api/v1/categories`
+- Request query example: `?status=ACTIVE&keyword=Elect&page=1&limit=10&sort=name asc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Electronics",
+      "parentId": null,
+      "status": "ACTIVE",
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid page parameter" } }
+```
+
+#### `GET /api/v1/categories/{categoryId}`
+- Request path example: `/categories/1`
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Electronics",
+  "parentId": null,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_CATEGORY_ID", "message": "invalid category ID" } }
+```
+- Error `404`
+```json
+{ "error": { "code": "CATEGORY_NOT_FOUND", "message": "..." } }
+```
+
+#### `PATCH /api/v1/categories/{categoryId}`
+- Request body
+```json
+{
+  "name": "Consumer Electronics",
+  "parentId": null,
+  "status": "ACTIVE"
+}
+```
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Consumer Electronics",
+  "parentId": null,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:05:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_CATEGORY_HIERARCHY", "message": "..." } }
+```
+```json
+{ "error": { "code": "CATEGORY_UPDATE_CONFLICT", "message": "..." } }
+```
+
+### 13.3 Product
+
+#### `POST /api/v1/products`
+- Request body
+```json
+{
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 100000,
+  "currency": "THB",
+  "status": "ACTIVE"
+}
+```
+- Success `201 Created`
+```json
+{
+  "id": 1,
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 100000,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "SKU_ALREADY_EXISTS", "message": "..." } }
+```
+```json
+{ "error": { "code": "UNSUPPORTED_CURRENCY", "message": "..." } }
+```
+
+#### `GET /api/v1/products`
+- Request query example: `?status=ACTIVE&categoryId=1&sku=PRODUCT-001&page=1&limit=10&sort=price_amount desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "sku": "PRODUCT-001",
+      "name": "Product 1",
+      "categoryId": 1,
+      "priceAmount": 100000,
+      "currency": "THB",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid sort parameter" } }
+```
+
+#### `GET /api/v1/products/{productId}`
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 100000,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_PRODUCT_ID", "message": "invalid product ID" } }
+```
+```json
+{ "error": { "code": "PRODUCT_NOT_FOUND", "message": "..." } }
+```
+
+#### `PATCH /api/v1/products/{productId}`
+- Request body
+```json
+{
+  "priceAmount": 120000,
+  "categoryId": 1,
+  "currency": "THB",
+  "status": "ACTIVE"
+}
+```
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 120000,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:10:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_PRICE_AMOUNT", "message": "..." } }
+```
+```json
+{ "error": { "code": "CATEGORY_NOT_FOUND", "message": "..." } }
+```
+
+### 13.4 Promotion
+
+#### `POST /api/v1/promotions`
+- Request body
+```json
+{
+  "code": "ITEM1_10_PERCENT",
+  "name": "Product 1 Discount 10%",
+  "description": "Product 1 gets 10% off",
+  "scope": "ITEM",
+  "priority": 10,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1 }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueBasisPoints": 1000,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Success `201 Created`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Product 1 Discount 10%",
+  "scope": "ITEM",
+  "status": "DRAFT",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 1,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_CODE_ALREADY_EXISTS", "message": "..." } }
+```
+```json
+{ "error": { "code": "TARGET_REQUIRED", "message": "..." } }
+```
+
+#### `GET /api/v1/promotions`
+- Request query example: `?status=ACTIVE&scope=ITEM&actionType=PERCENTAGE_DISCOUNT&activeAt=2026-06-10T00:00:00Z&page=1&limit=10&sort=priority desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "status": "ACTIVE",
+      "priority": 10,
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "2026-12-31T23:59:59Z",
+      "version": 1,
+      "stackable": true,
+      "exclusive": false,
+      "stopProcessing": false,
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid status parameter" } }
+```
+
+#### `GET /api/v1/promotions/{promotionId}`
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Product 1 Discount 10%",
+  "scope": "ITEM",
+  "status": "ACTIVE",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 1,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "description": "Product 1 gets 10% off",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1, "targetValue": null }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_PROMOTION_ID", "message": "invalid promotion ID" } }
+```
+```json
+{ "error": { "code": "PROMOTION_NOT_FOUND", "message": "..." } }
+```
+
+#### `PUT /api/v1/promotions/{promotionId}`
+- Request body
+```json
+{
+  "code": "ITEM1_10_PERCENT_V2",
+  "name": "Product 1 Discount 10% V2",
+  "description": "new config",
+  "scope": "ITEM",
+  "priority": 10,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [{ "targetType": "PRODUCT", "targetId": 1 }],
+  "conditions": [],
+  "actions": [{ "actionType": "PERCENTAGE_DISCOUNT", "valueBasisPoints": 1000, "appliesTo": "ITEM" }],
+  "expectedVersion": 1
+}
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT_V2",
+  "name": "Product 1 Discount 10% V2",
+  "scope": "ITEM",
+  "status": "DRAFT",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 2,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "description": "new config",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1, "targetValue": null }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+```json
+{ "error": { "code": "INVALID_PROMOTION_CONFIG", "message": "..." } }
+```
+
+#### `PATCH /api/v1/promotions/{promotionId}`
+- Request body
+```json
+{
+  "name": "Updated Name",
+  "priority": 20,
+  "expectedVersion": 2
+}
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Updated Name",
+  "scope": "ITEM",
+  "status": "ACTIVE",
+  "priority": 20,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 3,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "description": "Product 1 gets 10% off",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1, "targetValue": null }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "FIELD_NOT_PATCHABLE", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+
+#### `POST /api/v1/promotions/{promotionId}/validate`
+- Request body
+```json
+{ "expectedVersion": 2 }
+```
+- Success `200 OK`
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": []
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_NOT_FOUND", "message": "..." } }
+```
+
+#### `POST /api/v1/promotions/{promotionId}/activate`
+- Request body
+```json
+{ "expectedVersion": 2 }
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Updated Name",
+  "scope": "ITEM",
+  "status": "ACTIVE",
+  "priority": 20,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 3,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:10:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_CONFIGURATION_INVALID", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_ALREADY_EXPIRED", "message": "..." } }
+```
+
+#### `POST /api/v1/promotions/{promotionId}/deactivate`
+- Request body
+```json
+{
+  "expectedVersion": 3,
+  "reason": "Campaign ended"
+}
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Updated Name",
+  "scope": "ITEM",
+  "status": "INACTIVE",
+  "priority": 20,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 4,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:15:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_ALREADY_INACTIVE", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+
+#### `GET /api/v1/promotions/{promotionId}/usages`
+- Request query example: `?userId=1001&from=2026-06-01T00:00:00Z&to=2026-06-30T23:59:59Z&page=1&limit=10`
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "totalUsage": 1,
+  "totalDiscountAmount": 10000,
+  "items": [
+    {
+      "promotionId": 1,
+      "userId": 1001,
+      "orderId": 1,
+      "usageCount": 1,
+      "discountAmount": 10000,
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_NOT_FOUND", "message": "..." } }
+```
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid from parameter" } }
+```
+
+### 13.5 Pricing
+
+#### `POST /api/v1/pricing/calculate`
+- Request body
+```json
+{
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 },
+    { "productId": 2, "quantity": 2 }
+  ]
+}
+```
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "originalTotal": 200000,
+  "discountTotal": 10000,
+  "finalTotal": 190000,
+  "currency": "THB",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    },
+    {
+      "productId": 2,
+      "sku": "PRODUCT-002",
+      "productName": "Product 2",
+      "quantity": 2,
+      "unitPrice": 50000,
+      "originalAmount": 100000,
+      "discountAmount": 0,
+      "finalAmount": 100000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": []
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "EMPTY_ORDER_ITEMS", "message": "..." } }
+```
+```json
+{ "error": { "code": "CURRENCY_MISMATCH", "message": "..." } }
+```
+
+#### `POST /api/v1/pricing/explain`
+- Request body
+```json
+{
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+```
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "originalTotal": 100000,
+  "discountTotal": 10000,
+  "finalTotal": 90000,
+  "currency": "THB",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": []
+}
+```
+- Error body: same shape as `pricing/calculate`
+
+### 13.6 Order
+
+#### `POST /api/v1/orders/confirm`
+- Required header: `Idempotency-Key`
+- Request body
+```json
+{
+  "calculationId": "calc-001",
+  "acceptedFinalTotal": 135000,
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+```
+- Success `201 Created`
+```json
+{
+  "orderId": 1,
+  "orderNo": "ORD-000001",
+  "userId": 1001,
+  "status": "CONFIRMED",
+  "currency": "THB",
+  "originalTotal": 150000,
+  "discountTotal": 15000,
+  "finalTotal": 135000,
+  "calculationId": "calc-001",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "IDEMPOTENCY_KEY_REQUIRED", "message": "idempotency key is required" } }
+```
+```json
+{ "error": { "code": "ORDER_PRICE_CHANGED", "message": "..." } }
+```
+
+#### `GET /api/v1/orders`
+- Request query example: `?status=CONFIRMED&userId=1001&createdFrom=2026-06-01T00:00:00Z&createdTo=2026-06-30T23:59:59Z&page=1&limit=10&sort=created_at desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "orderId": 1,
+      "orderNo": "ORD-000001",
+      "userId": 1001,
+      "status": "CONFIRMED",
+      "currency": "THB",
+      "originalTotal": 150000,
+      "discountTotal": 15000,
+      "finalTotal": 135000,
+      "calculationId": "calc-001",
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error body
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid date range" } }
+```
+
+#### `GET /api/v1/orders/{orderId}`
+- Request path example: `/orders/1?userId=1001`
+- Success `200 OK`
+```json
+{
+  "orderId": 1,
+  "orderNo": "ORD-000001",
+  "userId": 1001,
+  "status": "CONFIRMED",
+  "currency": "THB",
+  "originalTotal": 150000,
+  "discountTotal": 15000,
+  "finalTotal": 135000,
+  "calculationId": "calc-001",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000,
+      "createdAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_ORDER_ID", "message": "invalid order ID" } }
+```
+```json
+{ "error": { "code": "ORDER_ACCESS_DENIED", "message": "..." } }
+```
+
+### 13.7 Calculation logs
+
+#### `GET /api/v1/calculation-logs`
+- Request query example: `?requestId=req-001&orderId=1&userId=1001&promotionId=1&createdFrom=2026-06-01T00:00:00Z&createdTo=2026-06-30T23:59:59Z&page=1&limit=10&sort=created_at desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "calculationId": "calc-001",
+      "orderId": 1,
+      "requestId": "req-001",
+      "userId": 1001,
+      "originalTotal": 150000,
+      "discountTotal": 15000,
+      "finalTotal": 135000,
+      "appliedPromotionCount": 1,
+      "skippedPromotionCount": 0,
+      "createdAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error body
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid createdFrom parameter" } }
+```
+
+#### `GET /api/v1/calculation-logs/{calculationId}`
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "requestId": "req-001",
+  "orderId": 1,
+  "userId": 1001,
+  "originalTotal": 150000,
+  "discountTotal": 15000,
+  "finalTotal": 135000,
+  "appliedPromotionCount": 1,
+  "skippedPromotionCount": 0,
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "CALCULATION_LOG_NOT_FOUND", "message": "..." } }
+```
+```json
+{ "error": { "code": "INVALID_CALCULATION_ID", "message": "invalid calculation ID" } }
+```
+
+#### `POST /api/v1/calculation-logs/{calculationId}/replay`
+- Request body
+```json
+{ "mode": "SNAPSHOT_CONFIG" }
+```
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "mode": "SNAPSHOT_CONFIG",
+  "originalResult": {
+    "calculationId": "calc-001",
+    "originalTotal": 150000,
+    "discountTotal": 15000,
+    "finalTotal": 135000,
+    "currency": "THB",
+    "items": [],
+    "appliedPromotions": [],
+    "skippedPromotions": []
+  },
+  "replayResult": {
+    "calculationId": "calc-001",
+    "originalTotal": 150000,
+    "discountTotal": 15000,
+    "finalTotal": 135000,
+    "currency": "THB",
+    "items": [],
+    "appliedPromotions": [],
+    "skippedPromotions": []
+  },
+  "matched": true,
+  "differences": []
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "REPLAY_MODE_NOT_SUPPORTED", "message": "..." } }
+```
+```json
+{ "error": { "code": "CALCULATION_REPLAY_FAILED", "message": "..." } }
+```
