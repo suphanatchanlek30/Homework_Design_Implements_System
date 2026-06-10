@@ -1,16 +1,17 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 
 	appconfig "github.com/suphanatchanlek30/homework_design_implements_system/internal/config"
 	appdatabase "github.com/suphanatchanlek30/homework_design_implements_system/internal/database"
+	"github.com/suphanatchanlek30/homework_design_implements_system/internal/handler"
+	"github.com/suphanatchanlek30/homework_design_implements_system/internal/repository"
+	"github.com/suphanatchanlek30/homework_design_implements_system/internal/service"
 )
 
 func main() {
@@ -28,35 +29,39 @@ func main() {
 		port = config.AppPort
 	}
 
+	// Repositories
+	categoryRepo := repository.NewCategoryRepository(db)
+	productRepo := repository.NewProductRepository(db)
+
+	// Services
+	categoryService := service.NewCategoryService(categoryRepo)
+	productService := service.NewProductService(productRepo, categoryRepo)
+
+	// Handlers
+	healthHandler := handler.NewHealthHandler(db)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+	productHandler := handler.NewProductHandler(productService)
+
+	apiV1 := app.Group("/api/v1")
+	apiV1.Get("/healthz", healthHandler.Healthz)
+	apiV1.Get("/readyz", healthHandler.Readyz)
+
+	// Category Routes
+	categories := apiV1.Group("/categories")
+	categories.Post("/", categoryHandler.Create)
+	categories.Get("/", categoryHandler.List)
+	categories.Get("/:categoryId", categoryHandler.GetByID)
+	categories.Patch("/:categoryId", categoryHandler.Update)
+
+	// Product Routes
+	products := apiV1.Group("/products")
+	products.Post("/", productHandler.Create)
+	products.Get("/", productHandler.List)
+	products.Get("/:productId", productHandler.GetByID)
+	products.Patch("/:productId", productHandler.Update)
+
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
-	})
-
-	app.Get("/health", func(c *fiber.Ctx) error {
-		sqlDB, err := db.DB()
-		if err != nil {
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-				"status": "unhealthy",
-				"db":     "error",
-				"error":  err.Error(),
-			})
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		if err := sqlDB.PingContext(ctx); err != nil {
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-				"status": "unhealthy",
-				"db":     "down",
-				"error":  err.Error(),
-			})
-		}
-
-		return c.JSON(fiber.Map{
-			"status": "ok",
-			"db":     "up",
-		})
 	})
 
 	if err := app.Listen(":" + port); err != nil {
