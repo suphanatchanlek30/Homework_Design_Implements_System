@@ -47,20 +47,33 @@ CREATE TABLE products (
 CREATE TABLE orders (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   order_no VARCHAR(100) NOT NULL,
-  user_id BIGINT UNSIGNED NOT NULL,
+  idempotency_key VARCHAR(120) NOT NULL,
+  request_hash CHAR(64) NOT NULL,
+  calculation_id VARCHAR(100) NOT NULL,
+  user_id BIGINT UNSIGNED NULL,
   original_total BIGINT NOT NULL DEFAULT 0,
   discount_total BIGINT NOT NULL DEFAULT 0,
   final_total BIGINT NOT NULL DEFAULT 0,
   currency VARCHAR(10) NOT NULL DEFAULT 'THB',
   status ENUM('DRAFT', 'CONFIRMED', 'PAID', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  applied_promotions_json JSON NOT NULL,
+  skipped_promotions_json JSON NOT NULL,
+  calculation_snapshot_json JSON NOT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   deleted_at DATETIME(3) NULL,
   PRIMARY KEY (id),
   CONSTRAINT uq_orders_order_no UNIQUE (order_no),
+  CONSTRAINT uq_orders_idempotency_key UNIQUE (idempotency_key),
+  CONSTRAINT chk_orders_applied_promotions_json CHECK (JSON_VALID(applied_promotions_json)),
+  CONSTRAINT chk_orders_skipped_promotions_json CHECK (JSON_VALID(skipped_promotions_json)),
+  CONSTRAINT chk_orders_calculation_snapshot_json CHECK (JSON_VALID(calculation_snapshot_json)),
   CONSTRAINT chk_orders_money_non_negative
     CHECK (original_total >= 0 AND discount_total >= 0 AND final_total >= 0)
 ) ENGINE=InnoDB;
+
+CREATE INDEX idx_orders_request_hash ON orders(request_hash);
+CREATE INDEX idx_orders_calculation_id ON orders(calculation_id);
 
 CREATE TABLE order_items (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
