@@ -803,15 +803,15 @@ Expected calculation:
 
 ```mermaid
 flowchart TD
-    Draft[POST /promotions: create DRAFT] --> Validate[POST /promotions/{id}/validate]
+    Draft["POST /promotions: create DRAFT"] --> Validate["POST /promotions/:id/validate"]
     Validate --> Valid{valid=true?}
-    Valid -->|No| Fix[PUT /promotions/{id}: replace config]
+    Valid -->|No| Fix["PUT /promotions/:id: replace config"]
     Fix --> Validate
-    Valid -->|Yes| Activate[POST /promotions/{id}/activate]
-    Activate --> Calculate[POST /pricing/calculate]
-    Calculate --> Explain[POST /pricing/explain]
-    Calculate --> Confirm[POST /orders/confirm]
-    Confirm --> Audit[GET /calculation-logs/{calculationId}]
+    Valid -->|Yes| Activate["POST /promotions/:id/activate"]
+    Activate --> Calculate["POST /pricing/calculate"]
+    Calculate --> Explain["POST /pricing/explain"]
+    Calculate --> Confirm["POST /orders/confirm"]
+    Confirm --> Audit["GET /calculation-logs/:calculationId"]
 ```
 
 ### 9.2 เพิ่ม cart discount 5% เมื่อยอดซื้อเกิน 1,000 บาท
@@ -1212,8 +1212,8 @@ flowchart TD
     Calculate[pricing calculate/explain] --> Log[promotion_calculation_logs]
     Confirm[orders confirm] --> Snapshot[orders calculation snapshot]
     Log --> List[GET /calculation-logs]
-    Log --> Detail[GET /calculation-logs/{calculationId}]
-    Detail --> Replay[POST /calculation-logs/{calculationId}/replay]
+    Log --> Detail["GET /calculation-logs/:calculationId"]
+    Detail --> Replay["POST /calculation-logs/:calculationId/replay"]
     Replay --> Preview[pricing Preview without persisting log]
     Preview --> Compare[Compare original vs replay]
 ```
