@@ -2,6 +2,10 @@
 
 The canonical schema is `database/schema.sql`.
 
+For a ready-to-run local setup, use `docker compose up --build` from the repository root.
+MySQL will initialize from `database/schema.sql` and `database/seed.sql` the first time the `mysql_data`
+volume is created.
+
 Main design decisions:
 
 - MySQL 8.0+ with InnoDB.

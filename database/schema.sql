@@ -21,9 +21,7 @@ CREATE TABLE product_categories (
   CONSTRAINT fk_product_categories_parent
     FOREIGN KEY (parent_id) REFERENCES product_categories(id)
     ON DELETE SET NULL
-    ON UPDATE CASCADE,
-  CONSTRAINT chk_product_categories_not_self_parent
-    CHECK (parent_id IS NULL OR parent_id <> id)
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE products (
