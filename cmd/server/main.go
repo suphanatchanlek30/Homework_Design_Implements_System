@@ -17,11 +17,10 @@ func main() {
 	_ = godotenv.Load()
 
 	config := appconfig.Load()
-	db, err := appdatabase.OpenMySQL(config.MySQLDSN())
+	db, err := appdatabase.ConnectGORM(config.MySQLDSN())
 	if err != nil {
 		log.Fatalf("connect mysql: %v", err)
 	}
-	defer db.Close()
 
 	app := fiber.New()
 	port := os.Getenv("APP_PORT")
@@ -34,14 +33,23 @@ func main() {
 	})
 
 	app.Get("/health", func(c *fiber.Ctx) error {
+		sqlDB, err := db.DB()
+		if err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"status": "unhealthy",
+				"db":     "error",
+				"error":  err.Error(),
+			})
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		if err := db.PingContext(ctx); err != nil {
+		if err := sqlDB.PingContext(ctx); err != nil {
 			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 				"status": "unhealthy",
 				"db":     "down",
-				"error":   err.Error(),
+				"error":  err.Error(),
 			})
 		}
 
