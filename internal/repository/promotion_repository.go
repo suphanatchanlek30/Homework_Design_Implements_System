@@ -125,10 +125,13 @@ func (r *promotionRepository) List(ctx context.Context, filter PromotionListFilt
 		query = query.Where("starts_at <= ? AND ends_at >= ?", *filter.ActiveAt, *filter.ActiveAt)
 	}
 	if filter.ActionType != nil && *filter.ActionType != "" {
-		query = query.Joins("JOIN promotion_actions pa ON pa.promotion_id = promotions.id AND pa.action_type = ?", *filter.ActionType)
+		query = query.Where(
+			"EXISTS (SELECT 1 FROM promotion_actions pa WHERE pa.promotion_id = promotions.id AND pa.action_type = ?)",
+			*filter.ActionType,
+		)
 	}
 
-	if err := query.Distinct("promotions.id").Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -141,7 +144,6 @@ func (r *promotionRepository) List(ctx context.Context, filter PromotionListFilt
 	offset := (page - 1) * limit
 	if err := query.
 		Select("promotions.id, promotions.code, promotions.name, promotions.scope, promotions.status, promotions.priority, promotions.starts_at, promotions.ends_at, promotions.version, promotions.stackable, promotions.exclusive, promotions.stop_processing, promotions.created_at, promotions.updated_at").
-		Distinct("promotions.id").
 		Offset(offset).
 		Limit(limit).
 		Scan(&summaries).Error; err != nil {
