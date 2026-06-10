@@ -11,6 +11,7 @@ type CategoryRepository interface {
 	Create(ctx context.Context, category *model.ProductCategory) error
 	Update(ctx context.Context, category *model.ProductCategory) error
 	FindByID(ctx context.Context, id uint64) (*model.ProductCategory, error)
+	FindByNameAndParent(ctx context.Context, name string, parentID *uint64) (*model.ProductCategory, error)
 	List(ctx context.Context, status *string, parentID *uint64, keyword *string, page, limit int, sort *string) ([]model.ProductCategory, int64, error)
 	FindDescendants(ctx context.Context, categoryID uint64) ([]model.ProductCategory, error)
 }
@@ -59,6 +60,23 @@ func (r *categoryRepository) List(ctx context.Context, status *string, parentID 
 	}
 
 	return categories, total, nil
+}
+
+func (r *categoryRepository) FindByNameAndParent(ctx context.Context, name string, parentID *uint64) (*model.ProductCategory, error) {
+	var category model.ProductCategory
+
+	query := r.db.WithContext(ctx).Where("name = ?", name)
+	if parentID == nil {
+		query = query.Where("parent_id IS NULL")
+	} else {
+		query = query.Where("parent_id = ?", *parentID)
+	}
+
+	if err := query.First(&category).Error; err != nil {
+		return nil, err
+	}
+
+	return &category, nil
 }
 
 // FindDescendants recursively finds all descendants to prevent circular hierarchy

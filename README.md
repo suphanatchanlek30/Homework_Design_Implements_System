@@ -29,7 +29,7 @@ docker compose up --build
 3. เปิดใช้งานแอปที่ `http://localhost:${APP_PORT}` เช่น `http://localhost:3000`
 4. MySQL จะพร้อมใช้งานที่ `localhost:${MYSQL_HOST_PORT}` เช่น `localhost:3307`
 
-Health check ของแอปคือ `http://localhost:${APP_PORT}/health`
+Health check ของแอปคือ `http://localhost:${APP_PORT}/api/v1/healthz`
 
 ## การ seed ฐานข้อมูล
 
@@ -102,7 +102,23 @@ go run ./cmd/server
 ## API ที่มีตอนนี้
 
 - `GET /` ตรวจสอบว่าแอปตอบสนอง
-- `GET /health` ตรวจสอบการเชื่อมต่อ MySQL จริง
+- `GET /api/v1/healthz` ตรวจสอบว่า process ยังทำงาน
+- `GET /api/v1/readyz` ตรวจสอบว่า MySQL พร้อมรับ traffic
+- `POST/GET/PATCH /api/v1/categories`
+- `POST/GET/PATCH /api/v1/products`
+- `POST/GET/PUT/PATCH /api/v1/promotions`
+- `POST /api/v1/promotions/{promotionId}/validate`
+- `POST /api/v1/promotions/{promotionId}/activate`
+- `POST /api/v1/promotions/{promotionId}/deactivate`
+- `GET /api/v1/promotions/{promotionId}/usages`
+- `POST /api/v1/pricing/calculate`
+- `POST /api/v1/pricing/explain`
+- `POST /api/v1/orders/confirm`
+- `GET /api/v1/orders`
+- `GET /api/v1/orders/{orderId}`
+- `GET /api/v1/calculation-logs`
+- `GET /api/v1/calculation-logs/{calculationId}`
+- `POST /api/v1/calculation-logs/{calculationId}/replay`
 
 ## ลำดับการใช้งานที่แนะนำ
 

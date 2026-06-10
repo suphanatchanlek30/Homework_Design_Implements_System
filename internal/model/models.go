@@ -35,14 +35,20 @@ type Product struct {
 
 type Order struct {
 	BaseModel
-	OrderNo       string      `gorm:"size:100;not null;uniqueIndex" json:"order_no"`
-	UserID        uint64      `gorm:"not null" json:"user_id"`
-	OriginalTotal int64       `gorm:"default:0;not null" json:"original_total"`
-	DiscountTotal int64       `gorm:"default:0;not null" json:"discount_total"`
-	FinalTotal    int64       `gorm:"default:0;not null" json:"final_total"`
-	Currency      string      `gorm:"size:10;default:'THB';not null" json:"currency"`
-	Status        string      `gorm:"type:enum('DRAFT','CONFIRMED','PAID','CANCELLED');default:'DRAFT';not null" json:"status"`
-	Items         []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"`
+	OrderNo               string      `gorm:"size:100;not null;uniqueIndex" json:"order_no"`
+	IdempotencyKey        string      `gorm:"size:120;not null;uniqueIndex" json:"-"`
+	RequestHash           string      `gorm:"size:128;not null;index" json:"-"`
+	CalculationID         string      `gorm:"size:100;not null;index" json:"calculation_id"`
+	UserID                *uint64     `gorm:"index" json:"user_id,omitempty"`
+	OriginalTotal         int64       `gorm:"default:0;not null" json:"original_total"`
+	DiscountTotal         int64       `gorm:"default:0;not null" json:"discount_total"`
+	FinalTotal            int64       `gorm:"default:0;not null" json:"final_total"`
+	Currency              string      `gorm:"size:10;default:'THB';not null" json:"currency"`
+	Status                string      `gorm:"type:enum('DRAFT','CONFIRMED','PAID','CANCELLED');default:'DRAFT';not null" json:"status"`
+	AppliedPromotionsJSON  []byte      `gorm:"type:json;not null" json:"-"`
+	SkippedPromotionsJSON  []byte      `gorm:"type:json;not null" json:"-"`
+	CalculationSnapshotJSON []byte     `gorm:"type:json;not null" json:"-"`
+	Items                 []OrderItem  `gorm:"foreignKey:OrderID" json:"items,omitempty"`
 }
 
 type OrderItem struct {
@@ -126,4 +132,19 @@ type PromotionUsage struct {
 	DiscountAmount int64     `gorm:"default:0;not null" json:"discount_amount"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type PromotionCalculationLog struct {
+	ID                     uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	CalculationID          string    `gorm:"size:100;not null;uniqueIndex" json:"calculation_id"`
+	OrderID                *uint64   `json:"order_id"`
+	RequestID              string    `gorm:"size:100;not null;index" json:"request_id"`
+	UserID                 *uint64   `json:"user_id"`
+	OriginalTotal          int64     `gorm:"not null" json:"original_total"`
+	DiscountTotal          int64     `gorm:"not null" json:"discount_total"`
+	FinalTotal             int64     `gorm:"not null" json:"final_total"`
+	AppliedPromotionsJSON  []byte    `gorm:"type:json;not null" json:"applied_promotions_json"`
+	SkippedPromotionsJSON  []byte    `gorm:"type:json;not null" json:"skipped_promotions_json"`
+	CalculationSnapshotJSON []byte    `gorm:"type:json;not null" json:"calculation_snapshot_json"`
+	CreatedAt              time.Time `json:"created_at"`
 }

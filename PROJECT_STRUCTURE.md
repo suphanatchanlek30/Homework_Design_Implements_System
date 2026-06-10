@@ -21,7 +21,7 @@ internal/
     strategy/             Promotion strategy implementations
   repository/             GORM repositories
   seed/                   Application seed helpers
-  service/                Pricing, order, promotion admin use cases
+  service/                Category, product, promotion, pricing, order use cases
 tests/
   unit/
   integration/
@@ -33,6 +33,17 @@ Layer dependency:
 ```text
 Handler -> Service -> Promotion Engine -> Strategy
         -> Repository -> MySQL
+```
+
+Current diagram-aligned API groups:
+
+```text
+Health    -> /api/v1/healthz, /api/v1/readyz
+Catalog   -> /api/v1/categories, /api/v1/products
+Promotion -> /api/v1/promotions/*
+Pricing   -> /api/v1/pricing/*
+Order     -> /api/v1/orders/*
+Audit     -> /api/v1/calculation-logs/*
 ```
 
 Rules to keep:
