@@ -1,10 +1,11 @@
-package promotion
+package promotion_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/suphanatchanlek30/homework_design_implements_system/internal/promotion"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/model"
 )
 
@@ -14,10 +15,10 @@ func TestCalculator_ItemAndCartPromotions(t *testing.T) {
 	code3 := "CART_5"
 	conflictGroup := "group-1"
 
-	calculator := NewCalculator()
-	result, err := calculator.Calculate(nil, CalculationContext{
+	calculator := promotion.NewCalculator()
+	result, err := calculator.Calculate(nil, promotion.CalculationContext{
 		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
-		Items: []CalculationItem{
+		Items: []promotion.CalculationItem{
 			{ProductID: 1, SKU: "P1", ProductName: "Product 1", CategoryID: 1, Quantity: 1, UnitPrice: 100000},
 			{ProductID: 2, SKU: "P2", ProductName: "Product 2", CategoryID: 1, Quantity: 1, UnitPrice: 50000},
 		},
@@ -68,10 +69,10 @@ func TestCalculator_ItemAndCartPromotions(t *testing.T) {
 
 func TestCalculator_SkipsInactivePromotion(t *testing.T) {
 	code := "OFF"
-	calculator := NewCalculator()
-	result, err := calculator.Calculate(nil, CalculationContext{
+	calculator := promotion.NewCalculator()
+	result, err := calculator.Calculate(nil, promotion.CalculationContext{
 		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
-		Items: []CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
+		Items: []promotion.CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
 		Promotions: []model.Promotion{
 			{
 				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
@@ -94,16 +95,16 @@ func TestCalculator_SkipsInactivePromotion(t *testing.T) {
 }
 
 func TestCalculator_CustomRegisteredAction(t *testing.T) {
-	registry := NewRegistry()
-	registry.RegisterAction("LOYALTY_BONUS", func(input ActionContext) (int64, error) {
+	registry := promotion.NewRegistry()
+	registry.RegisterAction("LOYALTY_BONUS", func(input promotion.ActionContext) (int64, error) {
 		return 3000, nil
 	})
 
 	code := "LOYALTY"
-	calculator := NewCalculatorWithRegistry(registry)
-	result, err := calculator.Calculate(nil, CalculationContext{
+	calculator := promotion.NewCalculatorWithRegistry(registry)
+	result, err := calculator.Calculate(nil, promotion.CalculationContext{
 		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
-		Items: []CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
+		Items: []promotion.CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
 		Promotions: []model.Promotion{
 			{
 				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},

@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/dto"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/model"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/repository"
+	servicepkg "github.com/suphanatchanlek30/homework_design_implements_system/internal/service"
 )
 
 type mockCalculationLogRepo struct {
@@ -92,7 +93,7 @@ func TestCalculationLogService_ReplayMatched(t *testing.T) {
 		},
 	}
 
-	svc := NewCalculationLogService(repo, pricing)
+	svc := servicepkg.NewCalculationLogService(repo, pricing)
 	res, err := svc.Replay(context.Background(), "calc-1", dto.CalculationLogReplayRequest{Mode: "SNAPSHOT_CONFIG"})
 
 	assert.NoError(t, err)

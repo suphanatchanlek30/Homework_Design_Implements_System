@@ -33,6 +33,21 @@ Endpoints ที่มีตอนนี้:
 
 ---
 
+## 0) Coverage Matrix
+
+ตารางนี้ตอบคำถามว่า “API ไหนช่วยพิสูจน์เงื่อนไขโจทย์ข้อไหน”
+
+| เงื่อนไขโจทย์ | API ที่ใช้เทส | สิ่งที่พิสูจน์ได้ |
+|---|---|---|
+| promotion ซ้อนกันต้องเรียงยังไง | `POST /pricing/calculate`, `POST /pricing/explain` | ลำดับ `ITEM -> CART -> COUPON -> SHIPPING`, sort by `priority` / `createdAt` / `id` |
+| เพิ่ม promotion โดยไม่กระทบ logic เดิม | `POST /promotions`, `PUT /promotions/{id}`, `PATCH /promotions/{id}`, `POST /promotions/{id}/validate` | เพิ่ม rule data หรือ strategy ใหม่โดย core flow ไม่ต้องแก้ |
+| เพิ่ม promotion ใหม่ที่ไม่เคยมีมาก่อน | `POST /promotions`, `POST /pricing/explain` | เพิ่ม action/condition ใหม่ผ่าน registry / rule data |
+| design pattern | โค้ด + `POST /pricing/explain` | Rule Engine + Strategy + Repository |
+| table design ยืดหยุ่น | `POST /promotions`, `GET /promotions/{id}` | data แยกเป็น promotion / target / condition / action |
+| คำนวณโปรโมชั่นได้ถูกต้อง | `POST /pricing/calculate`, `POST /orders/confirm` | price server-side, stacking ถูกลำดับ, final total ไม่ติดลบ, confirm ต้องตรงกับ calculation |
+
+---
+
 ## 1) วิธีเตรียม Postman
 
 ### Environment variables ที่แนะนำ
@@ -253,6 +268,15 @@ Status: `200 OK`
   }
 }
 ```
+
+#### Postman tests ที่ควรลอง
+1. list log แบบไม่ filter หลังจากทำ `pricing/calculate` หรือ `orders/confirm`
+2. filter ด้วย `requestId` เดียวกับ request ที่ยิงไปก่อนหน้า
+3. filter ด้วย `orderId` เพื่อหาการคำนวณที่เกี่ยวกับ order นั้น
+4. filter ด้วย `userId` และ `promotionId`
+5. filter ด้วย date range ที่ครอบคลุมเหตุการณ์จริง
+6. ส่ง date range ผิดเพื่อดู `400`
+7. ตรวจว่า list response ไม่เปิด snapshot เต็ม เพราะข้อมูลนี้เป็น sensitive payload
 
 #### Validation ที่โค้ดทำจริง
 - `page` ต้องเป็นตัวเลขและมากกว่า 0
@@ -680,6 +704,10 @@ Status: `201 Created`
 2. สร้าง promo CART แบบ fixed amount
 3. ส่ง action type ที่ไม่รองรับเพื่อดู `422`
 4. ส่ง target ว่างเพื่อดู `422`
+5. สร้าง promo coupon-based เพื่อพิสูจน์ว่า rule data แยกจาก logic หลัก
+6. สร้าง promo ซ้ำ code เดิมเพื่อดู `409`
+7. สร้าง promo ใหม่ที่ใช้ target เดิมแต่ action ต่างกัน เพื่อยืนยันว่าเพิ่ม promotion ใหม่ได้โดยไม่กระทบ logic เดิม
+8. สร้าง promo แบบซ้อนกันแล้วใช้ `priority` กับ `conflictGroup` ตรวจว่าระบบมีข้อมูลพอให้ engine ตัดสินลำดับได้
 
 ---
 
@@ -736,6 +764,17 @@ Status: `200 OK`
 - `page` และ `limit` ต้องถูกต้อง
 - `sort` ต้องอยู่ใน whitelist
 
+#### Postman tests ที่ควรลอง
+1. list promotion ที่ `status=ACTIVE`
+2. list promotion ที่ `scope=ITEM`
+3. list promotion ที่ `actionType=PERCENTAGE_DISCOUNT`
+4. list promotion ตามเวลา `activeAt`
+5. sort ตาม `priority desc`
+6. ส่ง `status=BAD` เพื่อดู `400`
+7. ส่ง `page=abc` เพื่อดู `400`
+8. ตรวจว่า summary list ไม่คืน `targets`, `conditions`, `actions` เต็มชุด
+9. list หลายหน้าเพื่อดู pagination response
+
 ---
 
 ### 4.3 `GET /api/v1/promotions/{promotionId}`
@@ -772,6 +811,14 @@ Status: `200 OK`
 | id ไม่ถูกต้อง | `400` | `INVALID_PROMOTION_ID` |
 | ไม่พบ promotion | `404` | `PROMOTION_NOT_FOUND` |
 
+#### Postman tests ที่ควรลอง
+1. ดู promotion ที่สร้างใหม่หลัง `POST`
+2. ดู promotion ที่มี target/condition/action หลายตัว
+3. ดู promotion ที่ inactive เพื่อยืนยันข้อมูลยัง load ได้
+4. ส่ง id ที่ไม่มีอยู่จริงเพื่อดู `404`
+5. compare response กับ list endpoint เพื่อยืนยันว่า detail โหลด relation ครบ
+6. ตรวจว่า promotion ที่ soft-delete หรือ inactive ยังแยก state ได้ชัด
+
 ---
 
 ### 4.4 `PUT /api/v1/promotions/{promotionId}`
@@ -787,6 +834,14 @@ replace configuration ทั้งชุด และเพิ่ม version
 |---|---:|---|
 | version ไม่ตรง | `409` | `PROMOTION_VERSION_CONFLICT` |
 | config ไม่ครบ | `422` | `INVALID_PROMOTION_CONFIG` |
+
+#### Postman tests ที่ควรลอง
+1. replace config ทั้งชุดใน draft promotion
+2. ส่ง `expectedVersion` ผิดเพื่อดู `409`
+3. ลบ `actions` ออกเพื่อดู `422`
+4. เปลี่ยน `code` ให้ชนของเดิมเพื่อดู `409`
+5. replace config เพื่อเพิ่ม promotion variant ใหม่โดยไม่ต้องเปลี่ยน engine code
+6. replace แล้วไปเรียก `pricing/explain` เพื่อตรวจว่า version ใหม่ถูกใช้จริง
 
 ---
 
@@ -804,6 +859,14 @@ replace configuration ทั้งชุด และเพิ่ม version
 | date range ผิด | `422` | `INVALID_PROMOTION_CONFIG` |
 | version ไม่ตรง | `409` | `PROMOTION_VERSION_CONFLICT` |
 
+#### Postman tests ที่ควรลอง
+1. patch เฉพาะ `name` หรือ `priority`
+2. patch `targets` เพื่อยืนยันว่าถูกบล็อก
+3. patch `startsAt` / `endsAt` ให้ย้อนกันเพื่อดู `422`
+4. patch ด้วย version ไม่ตรงเพื่อดู `409`
+5. patch เฉพาะ metadata แล้วตรวจว่า version เพิ่มและ cache strategy ต้อง invalidate
+6. patch เพื่อทดลอง business rule ที่ห้ามแก้ action/condition/target ผ่าน PATCH
+
 ---
 
 ### 4.6 `POST /api/v1/promotions/{promotionId}/validate`
@@ -818,6 +881,15 @@ run validation pipeline โดยไม่แก้ข้อมูล
 }
 ```
 
+#### Postman tests ที่ควรลอง
+1. validate promotion ที่ config ถูกต้อง
+2. validate promotion ที่ action ไม่รองรับ
+3. validate promotion ที่ target ไม่ครบ
+4. validate promotion ที่ช่วงเวลาไม่ถูกต้อง
+5. validate ก่อน activate ทุกครั้ง
+6. validate promotion ที่มี stacking policy หลายตัวเพื่อดู warnings
+7. validate promotion ใหม่ที่ไม่เคยมีมาก่อนเพื่อพิสูจน์ว่า registry เป็นจุดขยาย
+
 ---
 
 ### 4.7 `POST /api/v1/promotions/{promotionId}/activate`
@@ -830,6 +902,14 @@ run validation pipeline โดยไม่แก้ข้อมูล
 | config ไม่ผ่าน | `422` | `PROMOTION_CONFIGURATION_INVALID` |
 | หมดอายุแล้ว | `422` | `PROMOTION_ALREADY_EXPIRED` |
 
+#### Postman tests ที่ควรลอง
+1. activate promotion ที่ validate ผ่าน
+2. activate promotion ที่ config ผิด
+3. activate promotion ที่หมดอายุแล้ว
+4. activate ด้วย `expectedVersion` ผิด
+5. activate แล้ว re-check status ผ่าน `GET /promotions/{promotionId}`
+6. activate promotion แล้ว test `pricing/calculate` เพื่อดูว่า promotion ถูกใช้งานจริง
+
 ---
 
 ### 4.8 `POST /api/v1/promotions/{promotionId}/deactivate`
@@ -840,6 +920,12 @@ run validation pipeline โดยไม่แก้ข้อมูล
 |---|---:|---|
 | version ไม่ตรง | `409` | `PROMOTION_VERSION_CONFLICT` |
 | inactive อยู่แล้ว | `409` | `PROMOTION_ALREADY_INACTIVE` |
+
+#### Postman tests ที่ควรลอง
+1. deactivate promotion ที่ active อยู่
+2. deactivate ซ้ำอีกครั้งเพื่อดู `409`
+3. ส่ง reason เพื่อเก็บเหตุผลทางธุรกิจ
+4. deactivate แล้วไปยิง `pricing/calculate` อีกครั้งเพื่อยืนยันว่า promotion ไม่ active แล้ว
 
 ---
 
@@ -862,6 +948,15 @@ run validation pipeline โดยไม่แก้ข้อมูล
   "items": []
 }
 ```
+
+#### Postman tests ที่ควรลอง
+1. list usage แบบไม่ filter
+2. filter ด้วย `userId`
+3. filter ด้วย `from` / `to`
+4. filter ด้วย `page` และ `limit`
+5. ส่ง `from=bad-date` เพื่อดู `400`
+6. filter ด้วย `promotionId` เดียวกันหลาย request เพื่อดู usage สะสม
+7. ตรวจว่า result เป็น aggregate จริง ไม่ใช่ mock
 
 ---
 
@@ -941,6 +1036,14 @@ Status: `200 OK`
 2. เปลี่ยน quantity เป็น 0 เพื่อดู `422`
 3. ใส่ productId ที่ไม่มีจริงเพื่อดู `404`
 4. ส่ง `currency: "USD"` เพื่อดู `422`
+5. ใส่ productId เดิมซ้ำหลายแถวเพื่อยืนยันว่า system aggregate quantity ก่อนคำนวณ
+6. ส่ง payload ที่มี promotion-enabled order เดียวกันแล้ว compare กับผลใน `pricing/explain`
+7. ใช้สินค้าที่ราคาเยอะมากแล้วใส่ fixed discount เพื่อดูว่า final ไม่ติดลบ
+8. ใส่สินค้า 1 กับสินค้า 2 เพื่อดูว่า promotion ที่ target ต่างกันถูก apply ตาม item จริง
+9. ส่ง items หลายตัวแล้วตรวจลำดับการคำนวณ `ITEM -> CART -> COUPON -> SHIPPING`
+10. เปลี่ยน `couponCodes` แล้วดูว่า coupon ถูกอ่านจาก request และไม่ได้ไปกระทบ item promotion
+11. compare ผล `pricing/calculate` กับ `orders/confirm` ว่าค่า final ต้องตรงกันก่อน confirm
+12. ใช้สินค้าที่ inactive เพื่อดูว่า validate reject ตาม contract
 
 ---
 
@@ -954,6 +1057,14 @@ Status: `200 OK`
 #### หมายเหตุ
 - ใช้ logic เดียวกับ calculate
 - ควรเปิดให้เฉพาะ admin/support หรือ internal เท่านั้นเมื่อใส่ auth จริง
+
+#### Postman tests ที่ควรลอง
+1. ส่ง payload เดียวกับ `pricing/calculate` แล้วเทียบผล output ทุก field
+2. ดู decision trace / skipped promotion ที่ไม่เห็นใน `calculate`
+3. ใช้ `includeLoadedPromotions` และ `includeSkippedRules` ตอนทดสอบ debug flow
+4. ส่ง request จาก customer เพื่อยืนยันว่าในอนาคตจะต้องโดน role guard
+5. ใช้ promotion ซ้อนหลายชั้นเพื่อดูว่า trace แสดงเหตุผลที่ถูก apply/skip ครบ
+6. compare result กับ `pricing/calculate` เพื่อพิสูจน์ว่า logic เดียวกันแต่ explain เปิดรายละเอียดเพิ่ม
 
 ---
 
@@ -1019,6 +1130,13 @@ Status: `201 Created`
 }
 ```
 
+#### Postman tests ที่ควรลอง
+1. เปิดดู log ที่เกิดจาก calculation จริง
+2. compare snapshot กับ output จาก `pricing/calculate`
+3. ตรวจว่ามี promotion version ที่ใช้งานจริงตอนคำนวณ ไม่ใช่ current version
+4. ตรวจว่าอ่าน snapshot เดิม ไม่ใช่ไปอ่าน config ปัจจุบันของ promotion
+5. เปิด log ที่ไม่ใช่ของตัวเองเพื่อเตรียมทดสอบ access control เมื่อ auth middleware ถูกเปิดใช้
+
 #### Error Cases
 | Case | Status | Error Code |
 |---|---:|---|
@@ -1033,6 +1151,9 @@ Status: `201 Created`
 2. ใช้ `calculationId` จากผล preview ไป confirm
 3. ส่ง `Idempotency-Key` เดิมซ้ำเพื่อดูว่าได้ผลเดิม
 4. เปลี่ยน `acceptedFinalTotal` เพื่อดู `409`
+5. เปลี่ยน `items` หลัง preview เพื่อยืนยันว่า confirm ต้อง recalculate และ reject ถ้าราคาเปลี่ยน
+6. confirm order ที่ promotion usage ใกล้เต็มเพื่อดู check usage limit
+7. confirm แล้วไปดู order detail และ calculation log ว่า snapshot ถูก persist
 
 ---
 
@@ -1068,6 +1189,17 @@ Status: `201 Created`
 - `page` ต้องมากกว่า 0
 - `limit` ต้องอยู่ระหว่าง `1..100`
 
+#### Postman tests ที่ควรลอง
+1. list order แบบไม่ใส่ filter เพื่อดู default result
+2. filter ด้วย `status=CONFIRMED`
+3. filter ด้วย `userId` เพื่อดู scope ตามผู้ใช้
+4. filter ด้วยช่วงเวลา `createdFrom` / `createdTo`
+5. ส่ง `status=INVALID` เพื่อดู validation
+6. ส่ง `createdFrom` มากกว่า `createdTo` เพื่อดู `400`
+7. ส่ง `limit=0` และ `limit=101` เพื่อดู reject
+8. ส่ง sort ที่ไม่อยู่ whitelist เพื่อดู `400`
+9. ถ้ามี auth middleware ภายหลัง ให้เทสว่า customer เห็นเฉพาะ order ของตัวเอง
+
 ---
 
 ### 6.3 `GET /api/v1/orders/{orderId}`
@@ -1088,6 +1220,13 @@ Status: `201 Created`
 | orderId ไม่ถูกต้อง | `400` | `INVALID_ORDER_ID` |
 | order ไม่พบ | `404` | `ORDER_NOT_FOUND` |
 | user ไม่ตรงกับเจ้าของ order | `403` | `ORDER_ACCESS_DENIED` |
+
+#### Postman tests ที่ควรลอง
+1. ดู order ที่เพิ่ง confirm สำเร็จ
+2. ดู order ที่ไม่มีอยู่จริงเพื่อดู `404`
+3. ดู order ด้วย `userId` ที่ไม่ตรงกับ owner เพื่อยืนยัน access control logic
+4. ตรวจว่า response มี items, totals, applied promotions และ calculation snapshot ครบ
+5. ยืนยันว่า endpoint นี้ไม่ recalculate ตอนอ่าน
 
 ---
 
@@ -1230,6 +1369,13 @@ Status: `200 OK`
 }
 ```
 
+#### Postman tests ที่ควรลอง
+1. replay ด้วย snapshot เดิมแล้วต้องได้ผลเท่าเดิม
+2. replay ด้วย mode ที่ไม่รองรับเพื่อดู `422`
+3. compare originalResult กับ replayResult ว่าตรงกัน
+4. ยืนยันว่า replay ไม่สร้าง order ใหม่
+5. ยืนยันว่า replay ไม่ consume usage เพิ่ม
+
 ---
 
 ## 9) ค่าที่ควรรู้ก่อนทดสอบ
@@ -1291,3 +1437,56 @@ Status: `200 OK`
 - คู่มือนี้อิง behavior ที่โค้ดทำจริง ณ ตอนนี้ ไม่ได้เขียนตามสเปกในเอกสารทั้งหมดแบบอุดมคติ
 - ถ้าต้องการให้ตรงสเปกมากขึ้น ขั้นต่อไปคือเพิ่ม auth, audit, middleware validation และ scope-based access control
 - audit endpoints ใช้ snapshot ที่ persist ไว้ใน calculation log เป็น source of truth สำหรับ replay
+
+---
+
+## 12) สรุปว่าเทสไหนตอบโจทย์โจทย์นี้ได้
+
+### 12.1 Promotion ซ้อนกันต้องเรียงยังไง
+พิสูจน์ด้วย:
+- `POST /api/v1/pricing/calculate`
+- `POST /api/v1/pricing/explain`
+
+สิ่งที่ต้องดู:
+- ลำดับการประมวลผล `ITEM -> CART -> COUPON -> SHIPPING`
+- promotion ที่ priority สูงกว่าถูก apply ก่อน
+- promotion ที่ conflict ถูก skip ตาม `conflictGroup`, `exclusive`, `stopProcessing`
+- `explain` ต้องบอกเหตุผลว่าเพราะอะไรตัวหนึ่งถูก apply และอีกตัวถูก skip
+
+### 12.2 ถ้าต้องเพิ่ม promotion ใหม่โดยไม่กระทบ logic เดิม
+พิสูจน์ด้วย:
+- `POST /api/v1/promotions`
+- `PUT /api/v1/promotions/{promotionId}`
+- `PATCH /api/v1/promotions/{promotionId}`
+- `POST /api/v1/promotions/{promotionId}/validate`
+
+สิ่งที่ต้องดู:
+- สร้าง promotion ใหม่ได้จาก data/config
+- validate ผ่าน registry โดยไม่ต้องแก้ core pricing flow
+- PATCH จำกัดเฉพาะ metadata ไม่แตะ rule logic
+- PUT ใช้ version control เพื่อเปลี่ยน config แบบมีกรอบ
+
+### 12.3 ถ้าต้องเพิ่ม promotion ใหม่ที่ไม่เคยมีมาก่อน
+พิสูจน์ด้วย:
+- `POST /api/v1/promotions`
+- `POST /api/v1/promotions/{promotionId}/validate`
+- `POST /api/v1/pricing/explain`
+
+สิ่งที่ต้องดู:
+- action/condition ใหม่ต้องผ่าน registry หรือ validation pipeline
+- design ต้องรองรับ extension แบบ data-driven
+- ถ้า registry ยังไม่รองรับ ต้อง reject แบบชัดเจน ไม่ปล่อยให้คำนวณผิดเงียบ ๆ
+
+### 12.4 design pattern และ table design
+สิ่งที่คู่มือนี้สะท้อนจากโค้ด:
+- Rule Engine / Strategy Pattern: promotion action แยกเป็น registry และ strategy
+- Repository Pattern: แยกชั้นอ่าน/เขียนจาก DB
+- Versioned config: promotion เปลี่ยนผ่าน version ไม่แก้ของเดิมทิ้ง
+- Normalized table design: promotion, target, condition, action, usage, calculation log แยกกัน
+
+### 12.5 ขอบเขตที่เทสชุดนี้พิสูจน์ได้จริง
+- คำนวณโปรโมชั่นถูกต้องบน server-side
+- ตรวจ stacking และ rejection/skip logic
+- ตรวจ idempotency ของ confirm order
+- ตรวจ snapshot และ replay จาก audit log
+- ตรวจว่า list/detail/use-case แยก payload ตามหน้าที่

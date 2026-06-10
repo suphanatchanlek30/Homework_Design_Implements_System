@@ -22,8 +22,11 @@ internal/
   repository/             GORM repositories
   seed/                   Application seed helpers
   service/                Category, product, promotion, pricing, order use cases
-tests/
+test/
   unit/
+    handler/
+    promotion/
+    service/
   integration/
   api/
 ```
