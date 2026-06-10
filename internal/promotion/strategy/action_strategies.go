@@ -18,7 +18,7 @@ func (a *PercentageDiscountAction) Execute(order *model.Order, action model.Prom
 	basisPoints := int64(*action.ValueBasisPoints)
 
 	var discount int64
-	if action.Applies_To == "CART" || action.ActionType == "CART_PERCENTAGE_DISCOUNT" {
+	if action.AppliesTo == "CART" || action.ActionType == "CART_PERCENTAGE_DISCOUNT" {
 		// Calculate based on order total
 		discount = (order.OriginalTotal * basisPoints) / 10000
 	} else {

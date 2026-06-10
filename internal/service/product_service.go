@@ -12,10 +12,13 @@ import (
 )
 
 var (
-	ErrProductNotFound      = errors.New("product not found")
-	ErrSKUAlreadyExists     = errors.New("sku already exists")
-	ErrInvalidPriceAmount   = errors.New("invalid price amount: must be >= 0")
-	ErrUnsupportedCurrency  = errors.New("unsupported currency")
+	ErrProductNotFound     = errors.New("product not found")
+	ErrSKUAlreadyExists    = errors.New("sku already exists")
+	ErrInvalidPriceAmount  = errors.New("invalid price amount: must be >= 0")
+	ErrUnsupportedCurrency = errors.New("unsupported currency")
+	ErrInvalidProductName   = errors.New("product name is required")
+	ErrInvalidProductSKU    = errors.New("sku is required")
+	ErrInvalidProductStatus = errors.New("invalid status: must be ACTIVE or INACTIVE")
 )
 
 type ProductService interface {
@@ -39,13 +42,19 @@ func NewProductService(repo repository.ProductRepository, categoryRepo repositor
 
 func (s *productService) Create(ctx context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	if req.SKU == "" {
-		return nil, errors.New("sku is required")
+		return nil, ErrInvalidProductSKU
+	}
+	if req.Name == "" {
+		return nil, ErrInvalidProductName
 	}
 	if req.PriceAmount < 0 {
 		return nil, ErrInvalidPriceAmount
 	}
 	if req.Currency != "THB" {
 		return nil, ErrUnsupportedCurrency
+	}
+	if req.Status != "ACTIVE" && req.Status != "INACTIVE" {
+		return nil, ErrInvalidProductStatus
 	}
 
 	// Check SKU uniqueness
@@ -57,7 +66,7 @@ func (s *productService) Create(ctx context.Context, req dto.CreateProductReques
 	// Check Category existence
 	_, err = s.categoryRepo.FindByID(ctx, req.CategoryID)
 	if err != nil {
-		return nil, ErrParentNotFound // Using ErrParentNotFound as ErrCategoryNotFound
+		return nil, ErrCategoryNotFound
 	}
 
 	product := &model.Product{
@@ -101,12 +110,15 @@ func (s *productService) Update(ctx context.Context, id uint64, req dto.UpdatePr
 		product.Currency = *req.Currency
 	}
 	if req.Status != nil {
+		if *req.Status != "ACTIVE" && *req.Status != "INACTIVE" {
+			return nil, ErrInvalidProductStatus
+		}
 		product.Status = *req.Status
 	}
 	if req.CategoryID != nil {
 		_, err = s.categoryRepo.FindByID(ctx, *req.CategoryID)
 		if err != nil {
-			return nil, ErrParentNotFound
+			return nil, ErrCategoryNotFound
 		}
 		product.CategoryID = *req.CategoryID
 	}

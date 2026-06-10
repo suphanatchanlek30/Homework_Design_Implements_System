@@ -11,10 +11,13 @@ import (
 )
 
 var (
-	ErrCategoryNotFound      = errors.New("category not found")
-	ErrParentNotFound        = errors.New("parent category not found")
-	ErrCircularHierarchy     = errors.New("invalid category hierarchy: circular reference detected")
-	ErrCategoryAlreadyExists = errors.New("category already exists")
+	ErrCategoryNotFound       = errors.New("category not found")
+	ErrParentNotFound         = errors.New("parent category not found")
+	ErrCircularHierarchy      = errors.New("invalid category hierarchy: circular reference detected")
+	ErrCategoryAlreadyExists  = errors.New("category already exists")
+	ErrCategoryUpdateConflict = errors.New("category update conflict")
+	ErrInvalidCategoryName    = errors.New("category name is required")
+	ErrInvalidCategoryStatus  = errors.New("invalid status: must be ACTIVE or INACTIVE")
 )
 
 type CategoryService interface {
@@ -34,10 +37,10 @@ func NewCategoryService(repo repository.CategoryRepository) CategoryService {
 
 func (s *categoryService) Create(ctx context.Context, req dto.CreateCategoryRequest) (*dto.CategoryResponse, error) {
 	if req.Name == "" {
-		return nil, errors.New("category name is required")
+		return nil, ErrInvalidCategoryName
 	}
 	if req.Status != "ACTIVE" && req.Status != "INACTIVE" {
-		return nil, errors.New("invalid status: must be ACTIVE or INACTIVE")
+		return nil, ErrInvalidCategoryStatus
 	}
 
 	if req.ParentID != nil {
@@ -45,6 +48,11 @@ func (s *categoryService) Create(ctx context.Context, req dto.CreateCategoryRequ
 		if err != nil {
 			return nil, ErrParentNotFound
 		}
+	}
+
+	existing, err := s.repo.FindByNameAndParent(ctx, req.Name, req.ParentID)
+	if err == nil && existing != nil {
+		return nil, ErrCategoryAlreadyExists
 	}
 
 	category := &model.ProductCategory{
@@ -68,13 +76,13 @@ func (s *categoryService) Update(ctx context.Context, id uint64, req dto.UpdateC
 
 	if req.Name != nil {
 		if *req.Name == "" {
-			return nil, errors.New("category name cannot be empty")
+			return nil, ErrInvalidCategoryName
 		}
 		category.Name = *req.Name
 	}
 	if req.Status != nil {
 		if *req.Status != "ACTIVE" && *req.Status != "INACTIVE" {
-			return nil, errors.New("invalid status: must be ACTIVE or INACTIVE")
+			return nil, ErrInvalidCategoryStatus
 		}
 		category.Status = *req.Status
 	}
@@ -103,6 +111,11 @@ func (s *categoryService) Update(ctx context.Context, id uint64, req dto.UpdateC
 		}
 
 		category.ParentID = req.ParentID
+	}
+
+	existing, err := s.repo.FindByNameAndParent(ctx, category.Name, category.ParentID)
+	if err == nil && existing != nil && existing.ID != id {
+		return nil, ErrCategoryUpdateConflict
 	}
 
 	if err := s.repo.Update(ctx, category); err != nil {

@@ -12,6 +12,7 @@ type ProductRepository interface {
 	Update(ctx context.Context, product *model.Product) error
 	FindByID(ctx context.Context, id uint64) (*model.Product, error)
 	FindBySKU(ctx context.Context, sku string) (*model.Product, error)
+	FindByIDs(ctx context.Context, ids []uint64) ([]model.Product, error)
 	List(ctx context.Context, status, categoryID, sku, keyword *string, page, limit int, sort *string) ([]model.Product, int64, error)
 }
 
@@ -33,6 +34,20 @@ func (r *productRepository) FindBySKU(ctx context.Context, sku string) (*model.P
 		return nil, err
 	}
 	return &product, nil
+}
+
+func (r *productRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Product, error) {
+	var products []model.Product
+	if len(ids) == 0 {
+		return products, nil
+	}
+
+	if err := r.db.WithContext(ctx).
+		Where("id IN ?", ids).
+		Find(&products).Error; err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
 func (r *productRepository) List(ctx context.Context, status, categoryID, sku, keyword *string, page, limit int, sort *string) ([]model.Product, int64, error) {

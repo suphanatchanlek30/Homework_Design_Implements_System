@@ -1,4 +1,4 @@
-package unit
+package handler_test
 
 import (
 	"encoding/json"
