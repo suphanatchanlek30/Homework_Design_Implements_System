@@ -270,13 +270,11 @@ Status: `200 OK`
 ```
 
 #### Postman tests ที่ควรลอง
-1. list log แบบไม่ filter หลังจากทำ `pricing/calculate` หรือ `orders/confirm`
-2. filter ด้วย `requestId` เดียวกับ request ที่ยิงไปก่อนหน้า
-3. filter ด้วย `orderId` เพื่อหาการคำนวณที่เกี่ยวกับ order นั้น
-4. filter ด้วย `userId` และ `promotionId`
-5. filter ด้วย date range ที่ครอบคลุมเหตุการณ์จริง
-6. ส่ง date range ผิดเพื่อดู `400`
-7. ตรวจว่า list response ไม่เปิด snapshot เต็ม เพราะข้อมูลนี้เป็น sensitive payload
+1. `GET /categories?page=1&limit=10`
+2. `GET /categories?status=ACTIVE`
+3. `GET /categories?keyword=Elect`
+4. `GET /categories?sort=name asc`
+5. `GET /categories?page=abc` เพื่อดู `400`
 
 #### Validation ที่โค้ดทำจริง
 - `page` ต้องเป็นตัวเลขและมากกว่า 0
@@ -829,6 +827,84 @@ replace configuration ทั้งชุด และเพิ่ม version
 - ต้องส่ง `expectedVersion`
 - ถ้า version ไม่ตรงจะคืน conflict
 
+#### ตัวอย่างที่ถูกต้อง
+- Method: `PUT`
+- Path: `{{baseUrl}}/promotions/3`
+- Headers:
+  - `Content-Type: application/json`
+
+```json
+{
+  "code": "ITEM3_10_PERCENT",
+  "name": "Product 1 Discount 20% sale",
+  "description": "Product 1 gets 20% off",
+  "scope": "ITEM",
+  "priority": 10,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1 }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueBasisPoints": 1000,
+      "appliesTo": "ITEM"
+    }
+  ],
+  "expectedVersion": 1
+}
+```
+
+#### Expected Success Response
+Status: `200 OK`
+
+```json
+{
+  "promotionId": 3,
+  "code": "ITEM3_10_PERCENT",
+  "name": "Product 1 Discount 20% sale",
+  "scope": "ITEM",
+  "status": "DRAFT",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 2,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T08:21:01.742Z",
+  "updatedAt": "2026-06-10T08:21:01.742Z",
+  "description": "Product 1 gets 20% off",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "targets": [
+    {
+      "targetType": "PRODUCT",
+      "targetId": 1,
+      "targetValue": null
+    }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+
 #### Error Cases
 | Case | Status | Error Code |
 |---|---:|---|
@@ -852,6 +928,76 @@ replace configuration ทั้งชุด และเพิ่ม version
 - ห้าม patch `targets`, `conditions`, `actions`
 - ต้องส่ง `expectedVersion`
 
+#### ตัวอย่างที่ถูกต้อง
+- Method: `PATCH`
+- Path: `{{baseUrl}}/promotions/3`
+- Headers:
+  - `Content-Type: application/json`
+
+```json
+{
+  "name": "New Promotion Name",
+  "expectedVersion": 1
+}
+```
+
+```json
+{
+  "priority": 20,
+  "expectedVersion": 1
+}
+```
+
+```json
+{
+  "startsAt": "2026-01-10T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "expectedVersion": 1
+}
+```
+
+#### Expected Success Response
+Status: `200 OK`
+
+```json
+{
+  "promotionId": 3,
+  "code": "ITEM3_10_PERCENT",
+  "name": "New Promotion Name",
+  "scope": "ITEM",
+  "status": "DRAFT",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 2,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T08:21:01.742Z",
+  "updatedAt": "2026-06-10T08:21:01.742Z",
+  "description": "Product 1 gets 20% off",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "targets": [
+    {
+      "targetType": "PRODUCT",
+      "targetId": 1,
+      "targetValue": null
+    }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+
 #### Error Cases
 | Case | Status | Error Code |
 |---|---:|---|
@@ -866,11 +1012,27 @@ replace configuration ทั้งชุด และเพิ่ม version
 4. patch ด้วย version ไม่ตรงเพื่อดู `409`
 5. patch เฉพาะ metadata แล้วตรวจว่า version เพิ่มและ cache strategy ต้อง invalidate
 6. patch เพื่อทดลอง business rule ที่ห้ามแก้ action/condition/target ผ่าน PATCH
+7. patch `name` แล้วเรียก `GET /api/v1/promotions/3` เพื่อดูว่า version เพิ่มจริง
+8. patch ส่ง `targets` อย่างเดียวเพื่อดู `422 FIELD_NOT_PATCHABLE`
+9. patch ส่ง `name` พร้อม `targets` เพื่อดูว่าแก้ได้เฉพาะ `name` และ `targets` ถูก ignore
 
 ---
 
 ### 4.6 `POST /api/v1/promotions/{promotionId}/validate`
 run validation pipeline โดยไม่แก้ข้อมูล
+
+#### Request
+- Method: `POST`
+- Path: `{{baseUrl}}/promotions/{promotionId}/validate`
+- Headers:
+  - `Content-Type: application/json`
+
+#### Body ตัวอย่าง
+```json
+{
+  "expectedVersion": 1
+}
+```
 
 #### Response
 ```json
@@ -881,14 +1043,24 @@ run validation pipeline โดยไม่แก้ข้อมูล
 }
 ```
 
+#### พฤติกรรมจริงของโค้ด
+- validate จะเช็ก `expectedVersion` ก่อน
+- ถ้า version ไม่ตรง จะได้ `409 PROMOTION_VERSION_CONFLICT`
+- validate จะตรวจ config พื้นฐาน เช่น `code`, `name`, `scope`, date range, action, condition
+- `warnings` ใน implementation ปัจจุบันยังไม่ถูกเติมจาก stacking policy
+- target missing ไม่ได้ถูกตรวจโดย `validatePromotionModel` ในโค้ดปัจจุบัน
+
 #### Postman tests ที่ควรลอง
-1. validate promotion ที่ config ถูกต้อง
-2. validate promotion ที่ action ไม่รองรับ
-3. validate promotion ที่ target ไม่ครบ
-4. validate promotion ที่ช่วงเวลาไม่ถูกต้อง
-5. validate ก่อน activate ทุกครั้ง
-6. validate promotion ที่มี stacking policy หลายตัวเพื่อดู warnings
-7. validate promotion ใหม่ที่ไม่เคยมีมาก่อนเพื่อพิสูจน์ว่า registry เป็นจุดขยาย
+1. GET promotion รายตัวก่อน เพื่อดู `version` ปัจจุบัน
+2. ยิง validate ด้วย `expectedVersion` ที่ตรงกับ DB
+3. ยิง validate ด้วย `expectedVersion` ผิดเพื่อดู `409`
+4. ใช้ promotion ที่มีช่วงเวลาถูกต้องแล้วดู `valid: true`
+5. ใช้ promotion ที่ date range ผิด เพื่อดู `errors` เช่น `invalid date range`
+6. ใช้ promotion ที่ action ไม่รองรับ ถ้ามี seed/DB ที่ทำให้สร้างได้
+7. ใช้ promotion ที่ target หาย ถ้าต้องการพิสูจน์ข้อจำกัดของ validator ปัจจุบัน
+8. validate ก่อน activate ทุกครั้ง
+9. ใช้ promotion ที่มี stacking หลายตัวร่วมกับ `pricing/explain` แทนการดู warning จาก validate
+10. ใช้ promotion ใหม่ที่มี action/condition รองรับแล้วเพื่อพิสูจน์ว่า registry extension ทำงาน
 
 ---
 
@@ -915,11 +1087,64 @@ run validation pipeline โดยไม่แก้ข้อมูล
 ### 4.8 `POST /api/v1/promotions/{promotionId}/deactivate`
 ปิด promotion เพื่อหยุดใช้กับ calculation ใหม่
 
+#### Request
+- Method: `POST`
+- Path: `{{baseUrl}}/promotions/{promotionId}/deactivate`
+- Headers:
+  - `Content-Type: application/json`
+
+#### Body ตัวอย่าง
+```json
+{
+  "expectedVersion": 2,
+  "reason": "Campaign ended"
+}
+```
+
+#### Expected Success Response
+Status: `200 OK`
+
+```json
+{
+  "promotionId": 3,
+  "code": "ITEM3_10_PERCENT",
+  "name": "Product 1 Discount 20% sale",
+  "scope": "ITEM",
+  "status": "INACTIVE",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 3,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T08:21:01.742Z",
+  "updatedAt": "2026-06-10T08:30:00.000Z"
+}
+```
+
+#### พฤติกรรมจริงของโค้ด
+- ต้องส่ง `expectedVersion`
+- ถ้า `expectedVersion` ไม่ตรง จะได้ `409 PROMOTION_VERSION_CONFLICT`
+- ถ้า promotion อยู่ `INACTIVE` แล้ว จะได้ `409 PROMOTION_ALREADY_INACTIVE`
+- ถ้าผ่าน ระบบจะ set `status = INACTIVE` และเพิ่ม `version`
+- `reason` ถูกส่งมาใน request แต่ response ปัจจุบันไม่ได้สะท้อนกลับ
+
 #### Error Cases
 | Case | Status | Error Code |
 |---|---:|---|
 | version ไม่ตรง | `409` | `PROMOTION_VERSION_CONFLICT` |
 | inactive อยู่แล้ว | `409` | `PROMOTION_ALREADY_INACTIVE` |
+
+#### Postman tests ที่ควรลอง
+1. GET promotion รายตัวก่อน เพื่อดู `version` และ `status`
+2. deactivate promotion ที่ `status=ACTIVE`
+3. GET promotion อีกครั้งเพื่อยืนยันว่า `status=INACTIVE`
+4. deactivate ซ้ำอีกครั้งเพื่อดู `409 PROMOTION_ALREADY_INACTIVE`
+5. ส่ง `expectedVersion` ผิดเพื่อดู `409 PROMOTION_VERSION_CONFLICT`
+6. ส่ง reason เพื่อบันทึกเหตุผลทางธุรกิจ
+7. หลัง deactivate แล้ว ยิง `POST /api/v1/pricing/calculate` อีกครั้งเพื่อยืนยันว่า promotion ไม่ถูก apply แล้ว
+8. ถ้ามีหลายโปรโมชั่น ให้เช็กว่า promotion อื่นยังทำงานปกติ
 
 #### Postman tests ที่ควรลอง
 1. deactivate promotion ที่ active อยู่
@@ -1058,13 +1283,97 @@ Status: `200 OK`
 - ใช้ logic เดียวกับ calculate
 - ควรเปิดให้เฉพาะ admin/support หรือ internal เท่านั้นเมื่อใส่ auth จริง
 
+#### Request
+- Method: `POST`
+- Path: `{{baseUrl}}/pricing/explain`
+- Headers:
+  - `Content-Type: application/json`
+  - `X-Request-ID` optional
+
+#### Body ตัวอย่าง
+```json
+{
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 },
+    { "productId": 2, "quantity": 2 }
+  ]
+}
+```
+
+#### Expected Response
+Status: `200 OK`
+
+```json
+{
+  "calculationId": "calc-001",
+  "originalTotal": 200000,
+  "discountTotal": 10000,
+  "finalTotal": 190000,
+  "currency": "THB",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    },
+    {
+      "productId": 2,
+      "sku": "PRODUCT-002",
+      "productName": "Product 2",
+      "quantity": 2,
+      "unitPrice": 50000,
+      "originalAmount": 100000,
+      "discountAmount": 0,
+      "finalAmount": 100000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [
+    {
+      "promotionId": 2,
+      "code": "CART5",
+      "name": "Cart 5%",
+      "scope": "CART",
+      "reason": "CONFLICT_GROUP_BLOCKED"
+    }
+  ]
+}
+```
+
+#### พฤติกรรมจริงของโค้ด
+- ใช้ logic เดียวกับ `calculate`
+- `explain` จะ persist calculation log ด้วย `explain=true`
+- decision trace ถูกเก็บใน `calculationSnapshot`
+- current implementation ยังไม่มี query `includeLoadedPromotions` / `includeSkippedRules`
+
 #### Postman tests ที่ควรลอง
-1. ส่ง payload เดียวกับ `pricing/calculate` แล้วเทียบผล output ทุก field
-2. ดู decision trace / skipped promotion ที่ไม่เห็นใน `calculate`
-3. ใช้ `includeLoadedPromotions` และ `includeSkippedRules` ตอนทดสอบ debug flow
-4. ส่ง request จาก customer เพื่อยืนยันว่าในอนาคตจะต้องโดน role guard
-5. ใช้ promotion ซ้อนหลายชั้นเพื่อดูว่า trace แสดงเหตุผลที่ถูก apply/skip ครบ
-6. compare result กับ `pricing/calculate` เพื่อพิสูจน์ว่า logic เดียวกันแต่ explain เปิดรายละเอียดเพิ่ม
+1. ส่ง payload เดียวกับ `pricing/calculate` แล้ว compare `originalTotal`, `discountTotal`, `finalTotal`
+2. compare `items`, `appliedPromotions`, `skippedPromotions` กับผลจาก `pricing/calculate`
+3. หลังยิง `explain` แล้วไปดู `GET /api/v1/calculation-logs/{calculationId}` เพื่ออ่าน `calculationSnapshot`
+4. ใช้ promotion ที่มี target ตรงกันและ target ไม่ตรงกัน เพื่อดู `applied` กับ `skipped`
+5. ใช้ promotion ซ้อนหลายชั้นเพื่อดูเหตุผลที่ถูก apply/skip เช่น `CONFLICT_GROUP_BLOCKED` หรือ `TARGET_MISMATCH`
+6. ส่ง `currency` ผิด เช่น `USD` เพื่อดู `CURRENCY_MISMATCH`
+7. ส่ง request จาก customer เพื่อยืนยันว่าในอนาคตควรโดน role guard เมื่อมี auth middleware จริง
+8. ถ้าจะ debug trace จริง ให้ใช้ `calculation-logs` ไม่ใช่ query params เพิ่ม เพราะโค้ดปัจจุบันยังไม่รองรับ
+9. compare result กับ `pricing/calculate` เพื่อพิสูจน์ว่า logic เดียวกัน แต่ `explain` เปิด debug trail เพิ่ม
 
 ---
 
@@ -1113,29 +1422,50 @@ Status: `201 Created`
 ```json
 {
   "orderId": 1,
-  "orderNo": "ORD-...",
+  "orderNo": "ORD-1781082623796779553",
   "userId": 1001,
   "status": "CONFIRMED",
   "currency": "THB",
-  "originalTotal": 150000,
-  "discountTotal": 15000,
-  "finalTotal": 135000,
-  "calculationId": "calc-...",
-  "createdAt": "2026-06-10T10:00:00Z",
-  "updatedAt": "2026-06-10T10:00:00Z",
+  "originalTotal": 200000,
+  "discountTotal": 10000,
+  "finalTotal": 190000,
+  "calculationId": "calc-1781082623770286422",
+  "createdAt": "2026-06-10T16:10:23.797+07:00",
+  "updatedAt": "2026-06-10T16:10:23.797+07:00",
   "items": [],
-  "appliedPromotions": [],
-  "skippedPromotions": [],
-  "calculationSnapshot": {}
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [
+    {
+      "promotionId": 2,
+      "code": "ITEM2_MINUS_100",
+      "name": "Product 2 Discount 100 THB",
+      "reason": "CONFLICT_GROUP_BLOCKED"
+    }
+  ],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
 }
 ```
 
-#### Postman tests ที่ควรลอง
-1. เปิดดู log ที่เกิดจาก calculation จริง
-2. compare snapshot กับ output จาก `pricing/calculate`
-3. ตรวจว่ามี promotion version ที่ใช้งานจริงตอนคำนวณ ไม่ใช่ current version
-4. ตรวจว่าอ่าน snapshot เดิม ไม่ใช่ไปอ่าน config ปัจจุบันของ promotion
-5. เปิด log ที่ไม่ใช่ของตัวเองเพื่อเตรียมทดสอบ access control เมื่อ auth middleware ถูกเปิดใช้
+#### วิธีเทสที่แนะนำ
+1. ยิง `POST /api/v1/pricing/calculate` ด้วย payload เดียวกัน
+2. เอา `calculationId` และ `finalTotal` ไปใส่ใน `orders/confirm`
+3. ใส่ `Idempotency-Key` เช่น `idem-001`
+4. ยืนยันว่า response ได้ `201 Created`
+5. ดูว่า `finalTotal` ใน order ตรงกับ `pricing/calculate`
+6. เรียก `GET /api/v1/orders/{orderId}` เพื่อเช็ก order detail
+7. เรียก `GET /api/v1/calculation-logs/{calculationId}` เพื่อเช็ก snapshot
+8. ถ้า confirm สำเร็จแล้ว อย่าใช้ `acceptedFinalTotal` ค่าอื่นในรอบเดียวกัน เพราะจะได้ `ORDER_PRICE_CHANGED`
 
 #### Error Cases
 | Case | Status | Error Code |
@@ -1154,6 +1484,9 @@ Status: `201 Created`
 5. เปลี่ยน `items` หลัง preview เพื่อยืนยันว่า confirm ต้อง recalculate และ reject ถ้าราคาเปลี่ยน
 6. confirm order ที่ promotion usage ใกล้เต็มเพื่อดู check usage limit
 7. confirm แล้วไปดู order detail และ calculation log ว่า snapshot ถูก persist
+8. confirm สำเร็จแล้วลองยิง confirm ซ้ำด้วย `Idempotency-Key` เดิมเพื่อยืนยัน idempotency
+9. ตรวจว่า `appliedPromotions` และ `skippedPromotions` ใน order ตรงกับ `pricing/calculate`
+10. ตรวจว่า `calculationSnapshot.request` และ `calculationSnapshot.response` ถูกเก็บครบ
 
 ---
 
@@ -1227,6 +1560,185 @@ Status: `201 Created`
 3. ดู order ด้วย `userId` ที่ไม่ตรงกับ owner เพื่อยืนยัน access control logic
 4. ตรวจว่า response มี items, totals, applied promotions และ calculation snapshot ครบ
 5. ยืนยันว่า endpoint นี้ไม่ recalculate ตอนอ่าน
+
+---
+
+### 8.1 `GET /api/v1/calculation-logs`
+ใช้ค้นหา calculation log แบบ pagination และ filter จาก request/order/user/promotion/time
+
+#### Request
+- Method: `GET`
+- Path: `{{baseUrl}}/calculation-logs`
+
+#### Query Parameters
+| Parameter | Type | Default | คำอธิบาย |
+|---|---|---:|---|
+| `requestId` | string | none | request id จาก log ที่ persist ไว้ |
+| `orderId` | number | none | order ที่สร้างจาก calculation นี้ |
+| `userId` | number | none | user ของ calculation |
+| `promotionId` | number | none | promotion ที่ถูก apply |
+| `createdFrom` | datetime | none | RFC3339 start time |
+| `createdTo` | datetime | none | RFC3339 end time |
+| `page` | number | `1` | หน้าเริ่มต้น |
+| `limit` | number | `10` | จำนวนรายการต่อหน้า |
+| `sort` | string | `created_at DESC` | field ที่ whitelist |
+
+#### Sort whitelist
+- `id`
+- `request_id`
+- `order_id`
+- `user_id`
+- `created_at`
+
+#### Expected Response
+Status: `200 OK`
+
+```json
+{
+  "items": [
+    {
+      "calculationId": "calc-1781082623770286422",
+      "orderId": 1,
+      "requestId": "req-001",
+      "userId": 1001,
+      "originalTotal": 200000,
+      "discountTotal": 10000,
+      "finalTotal": 190000,
+      "appliedPromotionCount": 1,
+      "skippedPromotionCount": 1,
+      "createdAt": "2026-06-10T16:10:23.797+07:00"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Validation ที่โค้ดทำจริง
+- `createdFrom` และ `createdTo` ต้องเป็น RFC3339
+- `createdFrom` ต้องไม่มากกว่า `createdTo`
+- `page` ต้องมากกว่า 0
+- `limit` ต้องอยู่ระหว่าง `1..100`
+- `sort` ต้องอยู่ใน whitelist
+
+#### ข้อจำกัดจริงของโค้ด
+- `requestId` ใน log ถูก generate ตอน persist ไม่ได้มาจาก header ตอน request
+- filter `promotionId` ใช้ JSON ของ `appliedPromotions` เป็นหลัก
+- list response คืนแค่ summary ไม่คืน snapshot เต็ม
+
+#### Postman tests ที่ควรลอง
+1. list แบบไม่ใส่ filter เพื่อดูรายการล่าสุด
+2. filter ด้วย `orderId` ของ order ที่ confirm สำเร็จ
+3. filter ด้วย `userId=1001`
+4. filter ด้วย `promotionId=1`
+5. filter ด้วย `createdFrom` / `createdTo`
+6. ส่ง `createdFrom=bad` เพื่อดู `400`
+7. ส่ง `page=0` หรือ `limit=101` เพื่อดู reject
+8. ส่ง sort ที่ไม่อยู่ whitelist เพื่อดู `400`
+9. เอา `requestId` จาก DB มาใช้ filter ถ้าต้องการเทียบ log รายตัว
+10. ถ้าต้องการดู detail เต็ม ให้ไปที่ `GET /api/v1/calculation-logs/{calculationId}`
+
+---
+
+### 8.2 `GET /api/v1/calculation-logs/{calculationId}`
+ใช้ดู snapshot แบบเต็มของ calculation หนึ่งรายการ
+
+#### Request
+- Method: `GET`
+- Path: `{{baseUrl}}/calculation-logs/{calculationId}`
+
+#### Expected Response
+Status: `200 OK`
+
+```json
+{
+  "calculationId": "calc-1781082623770286422",
+  "requestId": "req-001",
+  "orderId": 1,
+  "userId": 1001,
+  "originalTotal": 200000,
+  "discountTotal": 10000,
+  "finalTotal": 190000,
+  "appliedPromotionCount": 1,
+  "skippedPromotionCount": 1,
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [
+    {
+      "promotionId": 2,
+      "code": "ITEM2_MINUS_100",
+      "name": "Product 2 Discount 100 THB",
+      "reason": "CONFLICT_GROUP_BLOCKED"
+    }
+  ],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {},
+    "explain": true,
+    "decisionTrace": [],
+    "scopeOrder": ["ITEM", "CART", "COUPON", "SHIPPING"]
+  }
+}
+```
+
+#### Error Cases
+| Case | Status | Error Code |
+|---|---:|---|
+| calculationId ไม่พบ | `404` | `CALCULATION_LOG_NOT_FOUND` |
+| calculationId ว่าง | `400` | `INVALID_CALCULATION_ID` |
+
+#### Postman tests ที่ควรลอง
+1. เปิดดู log ที่เพิ่งสร้างจาก `pricing/calculate` หรือ `orders/confirm`
+2. compare `appliedPromotions` กับ response จาก `pricing/calculate`
+3. compare `skippedPromotions` กับ response จาก `pricing/calculate`
+4. ตรวจว่า `calculationSnapshot` มี `request` และ `response`
+5. ใช้ `calculationId` ที่ไม่มีจริงเพื่อดู `404`
+6. ใช้ detail endpoint นี้แทน list เมื่ออยาก debug เงื่อนไขแบบลึก
+
+---
+
+### 8.3 `POST /api/v1/calculation-logs/{calculationId}/replay`
+ใช้ replay จาก snapshot เดิมเพื่อพิสูจน์ผลโดยไม่สร้าง order และไม่ consume usage
+
+#### Request
+- Method: `POST`
+- Path: `{{baseUrl}}/calculation-logs/{calculationId}/replay`
+- Body ตัวอย่าง:
+```json
+{ "mode": "SNAPSHOT_CONFIG" }
+```
+
+#### Expected Response
+Status: `200 OK`
+
+```json
+{
+  "calculationId": "calc-1781082623770286422",
+  "mode": "SNAPSHOT_CONFIG",
+  "originalResult": {},
+  "replayResult": {},
+  "matched": true,
+  "differences": []
+}
+```
+
+#### Postman tests ที่ควรลอง
+1. replay ด้วย calculationId ที่มีอยู่จริง
+2. ใช้ mode `SNAPSHOT_CONFIG` เท่านั้น เพราะโค้ดปัจจุบันรองรับแค่นี้
+3. compare `originalResult` กับ `replayResult`
+4. ตรวจว่า replay ไม่สร้าง order ใหม่
+5. ตรวจว่า replay ไม่ consume usage เพิ่ม
 
 ---
 
@@ -1490,3 +2002,1024 @@ Status: `200 OK`
 - ตรวจ idempotency ของ confirm order
 - ตรวจ snapshot และ replay จาก audit log
 - ตรวจว่า list/detail/use-case แยก payload ตามหน้าที่
+
+---
+
+## 13) Request/Response Reference ตามโค้ดจริง
+
+ภาคผนวกนี้รวบรวมตัวอย่าง `request body`, `response body`, และ `error body` ที่อิงจาก DTO และ handler จริงของโปรเจกต์
+
+### 13.1 Health
+
+#### `GET /api/v1/healthz`
+- Request body: ไม่มี
+- Success `200 OK`
+```json
+{ "status": "UP" }
+```
+- Error: ไม่มีกรณี business error ใน handler นี้
+
+#### `GET /api/v1/readyz`
+- Request body: ไม่มี
+- Success `200 OK`
+```json
+{
+  "status": "READY",
+  "dependencies": {
+    "mysql": "UP"
+  }
+}
+```
+- Error `503 Service Unavailable`
+```json
+{
+  "status": "NOT_READY",
+  "dependencies": {
+    "mysql": "DOWN"
+  }
+}
+```
+
+### 13.2 Category
+
+#### `POST /api/v1/categories`
+- Request body
+```json
+{
+  "name": "Electronics",
+  "parentId": null,
+  "status": "ACTIVE"
+}
+```
+- Success `201 Created`
+```json
+{
+  "id": 1,
+  "name": "Electronics",
+  "parentId": null,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error body ตัวอย่าง
+```json
+{ "error": { "code": "CATEGORY_ALREADY_EXISTS", "message": "..." } }
+```
+
+#### `GET /api/v1/categories`
+- Request query example: `?status=ACTIVE&keyword=Elect&page=1&limit=10&sort=name asc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Electronics",
+      "parentId": null,
+      "status": "ACTIVE",
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid page parameter" } }
+```
+
+#### `GET /api/v1/categories/{categoryId}`
+- Request path example: `/categories/1`
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Electronics",
+  "parentId": null,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_CATEGORY_ID", "message": "invalid category ID" } }
+```
+- Error `404`
+```json
+{ "error": { "code": "CATEGORY_NOT_FOUND", "message": "..." } }
+```
+
+#### `PATCH /api/v1/categories/{categoryId}`
+- Request body
+```json
+{
+  "name": "Consumer Electronics",
+  "parentId": null,
+  "status": "ACTIVE"
+}
+```
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Consumer Electronics",
+  "parentId": null,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:05:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_CATEGORY_HIERARCHY", "message": "..." } }
+```
+```json
+{ "error": { "code": "CATEGORY_UPDATE_CONFLICT", "message": "..." } }
+```
+
+### 13.3 Product
+
+#### `POST /api/v1/products`
+- Request body
+```json
+{
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 100000,
+  "currency": "THB",
+  "status": "ACTIVE"
+}
+```
+- Success `201 Created`
+```json
+{
+  "id": 1,
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 100000,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "SKU_ALREADY_EXISTS", "message": "..." } }
+```
+```json
+{ "error": { "code": "UNSUPPORTED_CURRENCY", "message": "..." } }
+```
+
+#### `GET /api/v1/products`
+- Request query example: `?status=ACTIVE&categoryId=1&sku=PRODUCT-001&page=1&limit=10&sort=price_amount desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "sku": "PRODUCT-001",
+      "name": "Product 1",
+      "categoryId": 1,
+      "priceAmount": 100000,
+      "currency": "THB",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid sort parameter" } }
+```
+
+#### `GET /api/v1/products/{productId}`
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 100000,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_PRODUCT_ID", "message": "invalid product ID" } }
+```
+```json
+{ "error": { "code": "PRODUCT_NOT_FOUND", "message": "..." } }
+```
+
+#### `PATCH /api/v1/products/{productId}`
+- Request body
+```json
+{
+  "priceAmount": 120000,
+  "categoryId": 1,
+  "currency": "THB",
+  "status": "ACTIVE"
+}
+```
+- Success `200 OK`
+```json
+{
+  "id": 1,
+  "sku": "PRODUCT-001",
+  "name": "Product 1",
+  "categoryId": 1,
+  "priceAmount": 120000,
+  "currency": "THB",
+  "status": "ACTIVE",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:10:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_PRICE_AMOUNT", "message": "..." } }
+```
+```json
+{ "error": { "code": "CATEGORY_NOT_FOUND", "message": "..." } }
+```
+
+### 13.4 Promotion
+
+#### `POST /api/v1/promotions`
+- Request body
+```json
+{
+  "code": "ITEM1_10_PERCENT",
+  "name": "Product 1 Discount 10%",
+  "description": "Product 1 gets 10% off",
+  "scope": "ITEM",
+  "priority": 10,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1 }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueBasisPoints": 1000,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Success `201 Created`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Product 1 Discount 10%",
+  "scope": "ITEM",
+  "status": "DRAFT",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 1,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_CODE_ALREADY_EXISTS", "message": "..." } }
+```
+```json
+{ "error": { "code": "TARGET_REQUIRED", "message": "..." } }
+```
+
+#### `GET /api/v1/promotions`
+- Request query example: `?status=ACTIVE&scope=ITEM&actionType=PERCENTAGE_DISCOUNT&activeAt=2026-06-10T00:00:00Z&page=1&limit=10&sort=priority desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "status": "ACTIVE",
+      "priority": 10,
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "2026-12-31T23:59:59Z",
+      "version": 1,
+      "stackable": true,
+      "exclusive": false,
+      "stopProcessing": false,
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error `400`
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid status parameter" } }
+```
+
+#### `GET /api/v1/promotions/{promotionId}`
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Product 1 Discount 10%",
+  "scope": "ITEM",
+  "status": "ACTIVE",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 1,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "description": "Product 1 gets 10% off",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1, "targetValue": null }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_PROMOTION_ID", "message": "invalid promotion ID" } }
+```
+```json
+{ "error": { "code": "PROMOTION_NOT_FOUND", "message": "..." } }
+```
+
+#### `PUT /api/v1/promotions/{promotionId}`
+- Request body
+```json
+{
+  "code": "ITEM1_10_PERCENT_V2",
+  "name": "Product 1 Discount 10% V2",
+  "description": "new config",
+  "scope": "ITEM",
+  "priority": 10,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [{ "targetType": "PRODUCT", "targetId": 1 }],
+  "conditions": [],
+  "actions": [{ "actionType": "PERCENTAGE_DISCOUNT", "valueBasisPoints": 1000, "appliesTo": "ITEM" }],
+  "expectedVersion": 1
+}
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT_V2",
+  "name": "Product 1 Discount 10% V2",
+  "scope": "ITEM",
+  "status": "DRAFT",
+  "priority": 10,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 2,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "description": "new config",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1, "targetValue": null }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+```json
+{ "error": { "code": "INVALID_PROMOTION_CONFIG", "message": "..." } }
+```
+
+#### `PATCH /api/v1/promotions/{promotionId}`
+- Request body
+```json
+{
+  "name": "Updated Name",
+  "priority": 20,
+  "expectedVersion": 2
+}
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Updated Name",
+  "scope": "ITEM",
+  "status": "ACTIVE",
+  "priority": 20,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 3,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "description": "Product 1 gets 10% off",
+  "conflictGroup": "PRODUCT_DISCOUNT",
+  "maxUsage": null,
+  "maxUsagePerUser": null,
+  "targets": [
+    { "targetType": "PRODUCT", "targetId": 1, "targetValue": null }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "actionType": "PERCENTAGE_DISCOUNT",
+      "valueAmount": null,
+      "valueBasisPoints": 1000,
+      "valueJson": null,
+      "maxDiscountAmount": null,
+      "appliesTo": "ITEM"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "FIELD_NOT_PATCHABLE", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+
+#### `POST /api/v1/promotions/{promotionId}/validate`
+- Request body
+```json
+{ "expectedVersion": 2 }
+```
+- Success `200 OK`
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": []
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_NOT_FOUND", "message": "..." } }
+```
+
+#### `POST /api/v1/promotions/{promotionId}/activate`
+- Request body
+```json
+{ "expectedVersion": 2 }
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Updated Name",
+  "scope": "ITEM",
+  "status": "ACTIVE",
+  "priority": 20,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 3,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:10:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_CONFIGURATION_INVALID", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_ALREADY_EXPIRED", "message": "..." } }
+```
+
+#### `POST /api/v1/promotions/{promotionId}/deactivate`
+- Request body
+```json
+{
+  "expectedVersion": 3,
+  "reason": "Campaign ended"
+}
+```
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "code": "ITEM1_10_PERCENT",
+  "name": "Updated Name",
+  "scope": "ITEM",
+  "status": "INACTIVE",
+  "priority": 20,
+  "startsAt": "2026-01-01T00:00:00Z",
+  "endsAt": "2026-12-31T23:59:59Z",
+  "version": 4,
+  "stackable": true,
+  "exclusive": false,
+  "stopProcessing": false,
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:15:00Z"
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_ALREADY_INACTIVE", "message": "..." } }
+```
+```json
+{ "error": { "code": "PROMOTION_VERSION_CONFLICT", "message": "..." } }
+```
+
+#### `GET /api/v1/promotions/{promotionId}/usages`
+- Request query example: `?userId=1001&from=2026-06-01T00:00:00Z&to=2026-06-30T23:59:59Z&page=1&limit=10`
+- Success `200 OK`
+```json
+{
+  "promotionId": 1,
+  "totalUsage": 1,
+  "totalDiscountAmount": 10000,
+  "items": [
+    {
+      "promotionId": 1,
+      "userId": 1001,
+      "orderId": 1,
+      "usageCount": 1,
+      "discountAmount": 10000,
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ]
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "PROMOTION_NOT_FOUND", "message": "..." } }
+```
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid from parameter" } }
+```
+
+### 13.5 Pricing
+
+#### `POST /api/v1/pricing/calculate`
+- Request body
+```json
+{
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 },
+    { "productId": 2, "quantity": 2 }
+  ]
+}
+```
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "originalTotal": 200000,
+  "discountTotal": 10000,
+  "finalTotal": 190000,
+  "currency": "THB",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    },
+    {
+      "productId": 2,
+      "sku": "PRODUCT-002",
+      "productName": "Product 2",
+      "quantity": 2,
+      "unitPrice": 50000,
+      "originalAmount": 100000,
+      "discountAmount": 0,
+      "finalAmount": 100000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": []
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "EMPTY_ORDER_ITEMS", "message": "..." } }
+```
+```json
+{ "error": { "code": "CURRENCY_MISMATCH", "message": "..." } }
+```
+
+#### `POST /api/v1/pricing/explain`
+- Request body
+```json
+{
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+```
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "originalTotal": 100000,
+  "discountTotal": 10000,
+  "finalTotal": 90000,
+  "currency": "THB",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": []
+}
+```
+- Error body: same shape as `pricing/calculate`
+
+### 13.6 Order
+
+#### `POST /api/v1/orders/confirm`
+- Required header: `Idempotency-Key`
+- Request body
+```json
+{
+  "calculationId": "calc-001",
+  "acceptedFinalTotal": 135000,
+  "userId": 1001,
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+```
+- Success `201 Created`
+```json
+{
+  "orderId": 1,
+  "orderNo": "ORD-000001",
+  "userId": 1001,
+  "status": "CONFIRMED",
+  "currency": "THB",
+  "originalTotal": 150000,
+  "discountTotal": 15000,
+  "finalTotal": 135000,
+  "calculationId": "calc-001",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "IDEMPOTENCY_KEY_REQUIRED", "message": "idempotency key is required" } }
+```
+```json
+{ "error": { "code": "ORDER_PRICE_CHANGED", "message": "..." } }
+```
+
+#### `GET /api/v1/orders`
+- Request query example: `?status=CONFIRMED&userId=1001&createdFrom=2026-06-01T00:00:00Z&createdTo=2026-06-30T23:59:59Z&page=1&limit=10&sort=created_at desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "orderId": 1,
+      "orderNo": "ORD-000001",
+      "userId": 1001,
+      "status": "CONFIRMED",
+      "currency": "THB",
+      "originalTotal": 150000,
+      "discountTotal": 15000,
+      "finalTotal": 135000,
+      "calculationId": "calc-001",
+      "createdAt": "2026-06-10T10:00:00Z",
+      "updatedAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error body
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid date range" } }
+```
+
+#### `GET /api/v1/orders/{orderId}`
+- Request path example: `/orders/1?userId=1001`
+- Success `200 OK`
+```json
+{
+  "orderId": 1,
+  "orderNo": "ORD-000001",
+  "userId": 1001,
+  "status": "CONFIRMED",
+  "currency": "THB",
+  "originalTotal": 150000,
+  "discountTotal": 15000,
+  "finalTotal": 135000,
+  "calculationId": "calc-001",
+  "createdAt": "2026-06-10T10:00:00Z",
+  "updatedAt": "2026-06-10T10:00:00Z",
+  "items": [
+    {
+      "productId": 1,
+      "sku": "PRODUCT-001",
+      "productName": "Product 1",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "originalAmount": 100000,
+      "discountAmount": 10000,
+      "finalAmount": 90000,
+      "createdAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "INVALID_ORDER_ID", "message": "invalid order ID" } }
+```
+```json
+{ "error": { "code": "ORDER_ACCESS_DENIED", "message": "..." } }
+```
+
+### 13.7 Calculation logs
+
+#### `GET /api/v1/calculation-logs`
+- Request query example: `?requestId=req-001&orderId=1&userId=1001&promotionId=1&createdFrom=2026-06-01T00:00:00Z&createdTo=2026-06-30T23:59:59Z&page=1&limit=10&sort=created_at desc`
+- Success `200 OK`
+```json
+{
+  "items": [
+    {
+      "calculationId": "calc-001",
+      "orderId": 1,
+      "requestId": "req-001",
+      "userId": 1001,
+      "originalTotal": 150000,
+      "discountTotal": 15000,
+      "finalTotal": 135000,
+      "appliedPromotionCount": 1,
+      "skippedPromotionCount": 0,
+      "createdAt": "2026-06-10T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+- Error body
+```json
+{ "error": { "code": "INVALID_QUERY_PARAMETER", "message": "invalid createdFrom parameter" } }
+```
+
+#### `GET /api/v1/calculation-logs/{calculationId}`
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "requestId": "req-001",
+  "orderId": 1,
+  "userId": 1001,
+  "originalTotal": 150000,
+  "discountTotal": 15000,
+  "finalTotal": 135000,
+  "appliedPromotionCount": 1,
+  "skippedPromotionCount": 0,
+  "appliedPromotions": [
+    {
+      "promotionId": 1,
+      "code": "ITEM1_10_PERCENT",
+      "name": "Product 1 Discount 10%",
+      "scope": "ITEM",
+      "discountAmount": 10000
+    }
+  ],
+  "skippedPromotions": [],
+  "calculationSnapshot": {
+    "request": {},
+    "response": {}
+  }
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "CALCULATION_LOG_NOT_FOUND", "message": "..." } }
+```
+```json
+{ "error": { "code": "INVALID_CALCULATION_ID", "message": "invalid calculation ID" } }
+```
+
+#### `POST /api/v1/calculation-logs/{calculationId}/replay`
+- Request body
+```json
+{ "mode": "SNAPSHOT_CONFIG" }
+```
+- Success `200 OK`
+```json
+{
+  "calculationId": "calc-001",
+  "mode": "SNAPSHOT_CONFIG",
+  "originalResult": {
+    "calculationId": "calc-001",
+    "originalTotal": 150000,
+    "discountTotal": 15000,
+    "finalTotal": 135000,
+    "currency": "THB",
+    "items": [],
+    "appliedPromotions": [],
+    "skippedPromotions": []
+  },
+  "replayResult": {
+    "calculationId": "calc-001",
+    "originalTotal": 150000,
+    "discountTotal": 15000,
+    "finalTotal": 135000,
+    "currency": "THB",
+    "items": [],
+    "appliedPromotions": [],
+    "skippedPromotions": []
+  },
+  "matched": true,
+  "differences": []
+}
+```
+- Error bodies
+```json
+{ "error": { "code": "REPLAY_MODE_NOT_SUPPORTED", "message": "..." } }
+```
+```json
+{ "error": { "code": "CALCULATION_REPLAY_FAILED", "message": "..." } }
+```
