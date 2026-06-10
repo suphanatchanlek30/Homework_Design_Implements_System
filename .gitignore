@@ -1,0 +1,44 @@
+# Go build outputs
+server.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go coverage and profiling
+coverage.out
+*.prof
+*.pprof
+
+# Local binaries
+bin/
+dist/
+tmp/
+
+# Dependency and module caches
+vendor/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+coverage.html
+
+# IDE and editor settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+.air.tmp

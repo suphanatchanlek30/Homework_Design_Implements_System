@@ -1,0 +1,9 @@
+-- Initial migration for the Promotion Engine.
+--
+-- Canonical schema:
+--   database/schema.sql
+--
+-- This project has not selected a migration runner yet. Some tools do not
+-- support MySQL client directives such as SOURCE, CREATE DATABASE, or USE.
+-- When a runner is selected, copy the table/index DDL from database/schema.sql
+-- into this file or split it into versioned up/down migration files.
