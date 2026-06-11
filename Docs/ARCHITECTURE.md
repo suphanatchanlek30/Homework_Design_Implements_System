@@ -13,11 +13,11 @@ HTTP Handler -> Service -> Repository -> MySQL
 
 ความหมายของแต่ละชั้น:
 
-- `internal/handler` รับ request, parse body, map error เป็น HTTP response
-- `internal/service` รวม business flow เช่น pricing, promotion lifecycle, confirm order
-- `internal/repository` query ข้อมูลด้วย Gorm
-- `internal/promotion` คำนวณ promotion จริง
-- `internal/model` นิยาม model ที่ map กับ table
+- [internal/handler](../internal/handler) รับ request, parse body, map error เป็น HTTP response
+- [internal/service](../internal/service) รวม business flow เช่น pricing, promotion lifecycle, confirm order
+- [internal/repository](../internal/repository) query ข้อมูลด้วย Gorm
+- [internal/promotion](../internal/promotion) คำนวณ promotion จริง
+- [internal/model](../internal/model) นิยาม model ที่ map กับ table
 
 ## Design Pattern ที่ใช้
 
@@ -113,7 +113,7 @@ condition ที่ registry รองรับตอนนี้:
 
 ## Gorm ใช้ตรงไหน
 
-- `internal/database/gorm.go` เปิด connection
-- `internal/model/models.go` นิยาม model และ gorm tags
-- `internal/repository/*` ใช้ query, preload, save, list
-- `internal/service/promotion_service.go` และ `internal/service/order_service.go` ใช้ transaction และ locking
+- [internal/database/gorm.go](../internal/database/gorm.go) เปิด connection
+- [internal/model/models.go](../internal/model/models.go) นิยาม model และ gorm tags
+- [internal/repository](../internal/repository) ใช้ query, preload, save, list
+- [internal/service/promotion_service.go](../internal/service/promotion_service.go) และ [internal/service/order_service.go](../internal/service/order_service.go) ใช้ transaction และ locking
