@@ -62,6 +62,6 @@ ORDER BY scope, priority, created_at, id;
 
 ## จุดที่ควรรู้
 
-- engine ปัจจุบันใช้ `conflict_group` และ `stop_processing` จริง
-- field อย่าง `stackable`, `exclusive`, `operator`, `logical_operator` ยังไม่ถูกใช้เต็มรูปแบบใน calculation loop
+- engine ปัจจุบันใช้ `conflict_group`, `stackable`, `exclusive` และ `stop_processing` จริง
+- field อย่าง `operator` และ `logical_operator` ยังไม่ถูกใช้เต็มรูปแบบใน calculation loop
 - schema รองรับ action type บางตัวมากกว่าที่ registry implement จริง
