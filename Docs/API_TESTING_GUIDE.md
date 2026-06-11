@@ -6,7 +6,7 @@
 
 1. พิสูจน์ว่า promotion หลายตัวทำงานร่วมกันตามลำดับ `ITEM -> CART -> COUPON -> SHIPPING`
 2. พิสูจน์ว่า promo ใหม่ถูกเพิ่มผ่าน data/API ได้ โดยไม่ต้องแก้ engine
-3. พิสูจน์ว่า `stackable`, `exclusive`, `stopProcessing`, `conflictGroup` ส่งผลกับผลลัพธ์จริง
+3. พิสูจน์ว่า `stackable`, `exclusive`, `conflictGroup` ส่งผลกับผลลัพธ์จริง และอธิบาย policy ของ `stopProcessing` ให้ตรงกับ engine
 4. พิสูจน์ว่า flow จริงตั้งแต่ `pricing/explain` ไปถึง `orders/confirm`, `promotion usages`, `calculation logs` ใช้งานต่อกันได้
 
 ## ภาพรวมการทดสอบ
@@ -54,6 +54,11 @@ docker compose logs -f mysql
 | `idempotencyKey` | `idem-pipeline-001` |
 | `userId` | `1001` |
 | `couponCode` | `SAVE7` |
+
+หมายเหตุ:
+
+- ถ้า request body ใช้ `{{couponCode}}` ค่าใน Postman Environment จะถูกแทนก่อนส่งจริง
+- ถ้าไม่ต้องการทดสอบ coupon promotion ให้ส่ง `couponCodes: []` หรือไม่ส่ง field นี้
 
 ตัวแปรที่ระบบจะสร้างระหว่างทาง:
 
@@ -129,10 +134,12 @@ promotion seed สำคัญ:
 ก่อนทดสอบ extended flow ควรยึดนิยามนี้:
 
 - `stackable=true` = promo นี้ยอมให้ apply ร่วมกับ promo อื่นได้
-- `stackable=false` = promo นี้ไม่ยอมอยู่ร่วมกับ promo อื่นในผลลัพธ์เดียวกัน
-- `exclusive=true` = ถ้า promo นี้ apply สำเร็จ ให้จบการคำนวณทันที
-- `stopProcessing=true` = หลัง apply promo นี้แล้วหยุดประมวลผล promo ถัดไป
+- `stackable=false` = promo นี้ apply ไม่ได้ถ้ามี applied promo มาก่อน และถ้า apply สำเร็จแล้ว promo ถัดไปจะถูก block
+- `exclusive=true` = promo นี้ apply ไม่ได้ถ้ามี applied promo มาก่อน และถ้า apply สำเร็จให้จบการคำนวณทันที
+- `stopProcessing=true` = หลัง apply promo นี้แล้วหยุดประมวลผล promo ถัดไปทันที โดย promo หลังจากนั้นจะไม่ถูกบันทึกเป็น skipped
 - `conflictGroup` = กันชนเฉพาะกลุ่ม promo
+
+ใน Request 21-30 ตัวอย่าง promotion ตั้ง `stopProcessing=false` ทั้งหมด ดังนั้นชุดนี้ไม่ได้สร้าง stop-processing promo แยกต่างหาก แต่ behavior `stopProcessing=true` ถูกยืนยันใน unit test ของ engine
 
 skip reasons ใหม่ที่ควรรู้:
 
@@ -645,6 +652,24 @@ pm.environment.set("couponPromotionVersion", body.version);
 }
 ```
 
+body ชุดนี้คือกรณี "มีคูปอง" เพราะ `{{couponCode}}` จะถูกแทนด้วยค่าจาก environment เช่น `SAVE7`
+
+ถ้าต้องการทดสอบกรณี "ไม่มีคูปอง" ให้ใช้ body นี้แทน:
+
+```json
+{
+  "userId": {{userId}},
+  "currency": "THB",
+  "couponCodes": [],
+  "paymentMethod": "PROMPTPAY",
+  "shipping": { "method": "STANDARD" },
+  "items": [
+    { "productId": 1, "quantity": 1 },
+    { "productId": 2, "quantity": 2 }
+  ]
+}
+```
+
 **Postman Tests**
 
 ```javascript
@@ -685,6 +710,7 @@ pm.test("conflict promotion is skipped", function () {
 - `PIPELINE_CART5` apply
 - `PIPELINE_CART10_CONFLICT` skip ด้วย `CONFLICT_GROUP_BLOCKED`
 - `PIPELINE_COUPON7` apply
+- ถ้าใช้ `couponCodes: []` โปร `PIPELINE_COUPON7` ไม่ควร apply และมักจะไปอยู่ใน `skippedPromotions` ด้วย `COUPON_CODE_MISMATCH`
 
 **อธิบายละเอียด**
 
@@ -996,7 +1022,17 @@ pm.test("replay returns comparison result", function () {
 
 ```javascript
 const body = pm.response.json();
-pm.response.to.have.status(201);
+
+pm.test("status is 201", function () {
+  pm.response.to.have.status(201);
+});
+
+pm.test("non-stackable policy is persisted", function () {
+  pm.expect(body.stackable).to.eql(false);
+  pm.expect(body.exclusive).to.eql(false);
+  pm.expect(body.stopProcessing).to.eql(false);
+});
+
 pm.environment.set("nonStackablePromotionId", body.promotionId);
 pm.environment.set("nonStackablePromotionVersion", body.version);
 ```
@@ -1004,6 +1040,7 @@ pm.environment.set("nonStackablePromotionVersion", body.version);
 **จุดประสงค์**
 
 - สร้าง promo สำหรับพิสูจน์ `NON_STACKABLE_CANNOT_STACK` หรือ `NON_STACKABLE_ALREADY_APPLIED`
+- หลังแก้ persistence ของ `stackable=false` แล้ว response ของ request นี้ควรสะท้อน `stackable: false` ตรงตาม request
 
 ---
 
@@ -1021,6 +1058,17 @@ pm.environment.set("nonStackablePromotionVersion", body.version);
 }
 ```
 
+**Postman Tests**
+
+```javascript
+const body = pm.response.json();
+
+pm.test("validation succeeds", function () {
+  pm.response.to.have.status(200);
+  pm.expect(body.valid).to.eql(true);
+});
+```
+
 ### 22.2 Activate
 
 `POST {{baseUrl}}/promotions/{{nonStackablePromotionId}}/activate`
@@ -1029,6 +1077,20 @@ pm.environment.set("nonStackablePromotionVersion", body.version);
 {
   "expectedVersion": {{nonStackablePromotionVersion}}
 }
+```
+
+**Postman Tests**
+
+```javascript
+const body = pm.response.json();
+
+pm.test("activation succeeds", function () {
+  pm.response.to.have.status(200);
+  pm.expect(body.status).to.eql("ACTIVE");
+  pm.expect(body.stackable).to.eql(false);
+});
+
+pm.environment.set("nonStackablePromotionVersion", body.version);
 ```
 
 **สิ่งที่ควรเห็น**
@@ -1070,19 +1132,15 @@ pm.test("status is 200", function () {
 });
 
 pm.test("non-stackable reason appears", function () {
-  pm.expect(
-    skippedReasons.includes("NON_STACKABLE_CANNOT_STACK") ||
-    skippedReasons.includes("NON_STACKABLE_ALREADY_APPLIED")
-  ).to.eql(true);
+  pm.expect(skippedReasons).to.include("NON_STACKABLE_CANNOT_STACK");
 });
 ```
 
 **อธิบาย**
 
-ผลลัพธ์ขึ้นกับ priority และ promo ที่ apply ไปก่อนหน้า:
+สำหรับ body และ priority ในคู่มือนี้ (`ITEM=10`, `CART5=20`, `NONSTACK=25`, `COUPON=30`) ควรเห็น `NON_STACKABLE_CANNOT_STACK` เพราะมี promo อื่น apply ไปก่อนแล้ว
 
-- ถ้า non-stackable มาทีหลัง promo อื่น จะเห็น `NON_STACKABLE_CANNOT_STACK`
-- ถ้า non-stackable apply ก่อน จะเห็น promo หลังถูก skip ด้วย `NON_STACKABLE_ALREADY_APPLIED`
+ถ้าคุณเปลี่ยน priority ของ non-stackable ให้มาก่อน promo อื่นและมัน apply สำเร็จ ค่อยจะเห็น promo หลังถูก skip ด้วย `NON_STACKABLE_ALREADY_APPLIED`
 
 ---
 
@@ -1099,6 +1157,19 @@ pm.test("non-stackable reason appears", function () {
   "expectedVersion": {{nonStackablePromotionVersion}},
   "reason": "cleanup after non-stackable scenario"
 }
+```
+
+**Postman Tests**
+
+```javascript
+const body = pm.response.json();
+
+pm.test("deactivation succeeds", function () {
+  pm.response.to.have.status(200);
+  pm.expect(body.status).to.eql("INACTIVE");
+});
+
+pm.environment.set("nonStackablePromotionVersion", body.version);
 ```
 
 **ใช้ทำอะไร**
@@ -1152,7 +1223,17 @@ pm.test("non-stackable reason appears", function () {
 
 ```javascript
 const body = pm.response.json();
-pm.response.to.have.status(201);
+
+pm.test("status is 201", function () {
+  pm.response.to.have.status(201);
+});
+
+pm.test("exclusive policy is persisted", function () {
+  pm.expect(body.stackable).to.eql(true);
+  pm.expect(body.exclusive).to.eql(true);
+  pm.expect(body.stopProcessing).to.eql(false);
+});
+
 pm.environment.set("exclusivePromotionId", body.promotionId);
 pm.environment.set("exclusivePromotionVersion", body.version);
 ```
@@ -1173,6 +1254,17 @@ pm.environment.set("exclusivePromotionVersion", body.version);
 }
 ```
 
+**Postman Tests**
+
+```javascript
+const body = pm.response.json();
+
+pm.test("validation succeeds", function () {
+  pm.response.to.have.status(200);
+  pm.expect(body.valid).to.eql(true);
+});
+```
+
 ### 26.2 Activate
 
 `POST {{baseUrl}}/promotions/{{exclusivePromotionId}}/activate`
@@ -1181,6 +1273,20 @@ pm.environment.set("exclusivePromotionVersion", body.version);
 {
   "expectedVersion": {{exclusivePromotionVersion}}
 }
+```
+
+**Postman Tests**
+
+```javascript
+const body = pm.response.json();
+
+pm.test("activation succeeds", function () {
+  pm.response.to.have.status(200);
+  pm.expect(body.status).to.eql("ACTIVE");
+  pm.expect(body.exclusive).to.eql(true);
+});
+
+pm.environment.set("exclusivePromotionVersion", body.version);
 ```
 
 ---
@@ -1219,22 +1325,15 @@ pm.test("status is 200", function () {
 });
 
 pm.test("exclusive promo is applied or blocks later promos", function () {
-  pm.expect(
-    appliedCodes.includes("PIPELINE_EXCLUSIVE_CART8") ||
-    skippedReasons.includes("EXCLUSIVE_CANNOT_STACK") ||
-    skippedReasons.includes("EXCLUSIVE_ALREADY_APPLIED")
-  ).to.eql(true);
+  pm.expect(skippedReasons).to.include("EXCLUSIVE_CANNOT_STACK");
 });
 ```
 
 **อธิบาย**
 
-scenario นี้มีได้ 2 แบบ:
+สำหรับ body และ priority ในคู่มือนี้ (`ITEM=10`, `CART5=20`, `EXCLUSIVE=22`, `COUPON=30`) ควรเห็น `EXCLUSIVE_CANNOT_STACK` เพราะมี promo อื่น apply ไปก่อนแล้ว
 
-- ถ้า exclusive promo apply สำเร็จ ตัวที่มาหลังจากนั้นควรถูก block
-- ถ้า promo อื่น apply ไปก่อนแล้ว exclusive มาทีหลัง exclusive ควรถูก skip ด้วย `EXCLUSIVE_CANNOT_STACK`
-
-จุดสำคัญคือคุณควรเห็นว่า exclusive ไม่ได้อยู่ร่วมกับ applied promo อื่น
+ถ้าคุณเปลี่ยน priority ของ exclusive ให้มาก่อน promo อื่นและมัน apply สำเร็จ engine จะหยุด loop ทันที และ promo หลังจากนั้นจะไม่ถูก apply ต่อ
 
 ---
 
@@ -1251,6 +1350,19 @@ scenario นี้มีได้ 2 แบบ:
   "expectedVersion": {{exclusivePromotionVersion}},
   "reason": "cleanup after exclusive scenario"
 }
+```
+
+**Postman Tests**
+
+```javascript
+const body = pm.response.json();
+
+pm.test("deactivation succeeds", function () {
+  pm.response.to.have.status(200);
+  pm.expect(body.status).to.eql("INACTIVE");
+});
+
+pm.environment.set("exclusivePromotionVersion", body.version);
 ```
 
 ---
@@ -1357,13 +1469,13 @@ pm.test("response is ORDER_PRICE_CHANGED", function () {
 
 ### Non-stackable scenario
 
-- ถ้า non-stackable มาหลัง promo อื่น: `NON_STACKABLE_CANNOT_STACK`
+- สำหรับ priority ในคู่มือนี้: `NON_STACKABLE_CANNOT_STACK`
 - ถ้า non-stackable apply ก่อน: promo หลังจะได้ `NON_STACKABLE_ALREADY_APPLIED`
 
 ### Exclusive scenario
 
-- ถ้า exclusive apply สำเร็จ: promo ถัดไปไม่ควรได้ apply
-- ถ้า exclusive มาทีหลัง applied promo อื่น: `EXCLUSIVE_CANNOT_STACK`
+- สำหรับ priority ในคู่มือนี้: `EXCLUSIVE_CANNOT_STACK`
+- ถ้า exclusive apply สำเร็จ: engine จะหยุด loop ทันที
 
 ## วิธีอ่านผล `appliedPromotions` และ `skippedPromotions`
 
@@ -1379,7 +1491,8 @@ pm.test("response is ORDER_PRICE_CHANGED", function () {
 - `NON_STACKABLE_CANNOT_STACK` = promo ตัวนี้ไม่ยอมมาหลัง promo อื่น
 - `NON_STACKABLE_ALREADY_APPLIED` = มี promo non-stackable apply ไปแล้ว จึงกัน promo หลัง
 - `EXCLUSIVE_CANNOT_STACK` = exclusive promo ไม่ยอมมาในรอบที่มี applied promo แล้ว
-- `EXCLUSIVE_ALREADY_APPLIED` = มี exclusive promo apply ไปแล้ว จึงหยุด promo อื่น
+- `EXCLUSIVE_ALREADY_APPLIED` = มี exclusive promo apply ไปแล้ว จึงกัน promo ถัดไป
+- ถ้าเห็น `stop_processing=true` ใน trace แปลว่า engine หยุด loop หลัง promo นั้น และ promo หลังจากนั้นจะไม่ถูกบันทึกเป็น skipped
 
 ## ถ้าจะเดโมสั้น
 
