@@ -456,6 +456,7 @@ loop หลักเริ่มที่ [internal/promotion/engine.go](../inte
 
 - ถ้ามี exclusive promo apply ไปแล้ว promo ถัดไปจะถูก skip ด้วย `EXCLUSIVE_ALREADY_APPLIED`
 - ถ้า promo ตัวใหม่เป็น exclusive แต่มี promo อื่น apply ไปก่อนแล้ว จะถูก skip ด้วย `EXCLUSIVE_CANNOT_STACK`
+- ถ้า exclusive promo apply สำเร็จ engine จะ `break` ทันที จึงมักไม่เห็น promo หลังจากนั้นถูกบันทึกเป็น skipped ในรอบเดียวกัน
 
 #### `stackable=false`
 
@@ -465,6 +466,7 @@ loop หลักเริ่มที่ [internal/promotion/engine.go](../inte
 #### `stopProcessing`
 
 - ถ้า promo ตัวที่ apply สำเร็จมี `stopProcessing=true` engine จะหยุด loop ทันที
+- promo หลังจากนั้นจะไม่ถูกประเมินต่อ และจะไม่ถูกบันทึกเป็น skipped ในผลลัพธ์รอบนั้น
 
 ผลของ design นี้คือ:
 

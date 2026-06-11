@@ -89,12 +89,14 @@ engine คำนวณ promotion ตามลำดับนี้:
 - ใช้เฉพาะ promotion ที่ `ACTIVE` และอยู่ในช่วงเวลาใช้งาน
 - เช็ก `target` ก่อน
 - เช็ก `condition` ถัดมา
+- enforce `exclusive` และ `stackable` ก่อน apply promotion
 - ถ้า `conflict_group` ชนกับ promo ที่ apply ไปแล้ว จะถูก skip
 - ถ้า `stop_processing = true` จะหยุดคำนวณหลัง promo นั้น
 
 หมายเหตุ:
 
-- field อย่าง `stackable` และ `exclusive` มีอยู่ใน schema/model แต่ยังไม่ได้ถูกใช้เต็มรูปแบบใน engine ปัจจุบัน
+- `exclusive=true` ถ้า apply สำเร็จจะหยุด loop ทันที และ promo ถัดไปจะไม่ถูกพิจารณาต่อ
+- `stackable=false` ถ้ามาหลัง promo อื่นจะถูก skip ด้วย `NON_STACKABLE_CANNOT_STACK`; ถ้า apply สำเร็จก่อน promo อื่น ตัวถัดไปจะถูก skip ด้วย `NON_STACKABLE_ALREADY_APPLIED`
 - `operator` และ `logical_operator` ใน condition ยังมีไว้รองรับ design มากกว่า behavior เต็มรูปแบบ
 
 ## เอกสารที่ควรอ่าน
