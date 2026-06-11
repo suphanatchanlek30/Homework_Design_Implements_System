@@ -134,6 +134,9 @@ func (c *calculator) Calculate(ctx context.Context, input CalculationContext) (*
 
 	runningCartBase := originalTotal
 	appliedConflictGroups := map[string]bool{}
+	hasAppliedPromotions := false
+	appliedExclusive := false
+	appliedNonStackable := false
 
 	for _, promotion := range input.Promotions {
 		if !isPromotionActive(promotion, input.Now) {
@@ -141,6 +144,22 @@ func (c *calculator) Calculate(ctx context.Context, input CalculationContext) (*
 		}
 		if !isAllowedScope(promotion.Scope) {
 			result.SkippedPromotions = append(result.SkippedPromotions, skipped(promotion, "INVALID_SCOPE"))
+			continue
+		}
+		if appliedExclusive {
+			result.SkippedPromotions = append(result.SkippedPromotions, skipped(promotion, "EXCLUSIVE_ALREADY_APPLIED"))
+			continue
+		}
+		if promotion.Exclusive && hasAppliedPromotions {
+			result.SkippedPromotions = append(result.SkippedPromotions, skipped(promotion, "EXCLUSIVE_CANNOT_STACK"))
+			continue
+		}
+		if appliedNonStackable {
+			result.SkippedPromotions = append(result.SkippedPromotions, skipped(promotion, "NON_STACKABLE_ALREADY_APPLIED"))
+			continue
+		}
+		if !promotion.Stackable && hasAppliedPromotions {
+			result.SkippedPromotions = append(result.SkippedPromotions, skipped(promotion, "NON_STACKABLE_CANNOT_STACK"))
 			continue
 		}
 		if promotion.ConflictGroup != nil && *promotion.ConflictGroup != "" && appliedConflictGroups[*promotion.ConflictGroup] {
@@ -173,17 +192,29 @@ func (c *calculator) Calculate(ctx context.Context, input CalculationContext) (*
 			Scope:          promotion.Scope,
 			DiscountAmount: discount,
 		})
+		hasAppliedPromotions = true
+		if promotion.Exclusive {
+			appliedExclusive = true
+		}
+		if !promotion.Stackable {
+			appliedNonStackable = true
+		}
 
 		if promotion.ConflictGroup != nil && *promotion.ConflictGroup != "" {
 			appliedConflictGroups[*promotion.ConflictGroup] = true
+		}
+
+		runningCartBase = computeCurrentCartBase(result.Items)
+
+		if promotion.Exclusive {
+			result.DecisionTrace = append(result.DecisionTrace, "exclusive=true")
+			break
 		}
 
 		if promotion.StopProcessing {
 			result.DecisionTrace = append(result.DecisionTrace, "stop_processing=true")
 			break
 		}
-
-		runningCartBase = computeCurrentCartBase(result.Items)
 	}
 
 	result.OriginalTotal = originalTotal
