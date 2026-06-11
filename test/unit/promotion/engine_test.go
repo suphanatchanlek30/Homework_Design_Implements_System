@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/suphanatchanlek30/homework_design_implements_system/internal/promotion"
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/model"
+	"github.com/suphanatchanlek30/homework_design_implements_system/internal/promotion"
 )
 
 func TestCalculator_ItemAndCartPromotions(t *testing.T) {
@@ -26,39 +26,39 @@ func TestCalculator_ItemAndCartPromotions(t *testing.T) {
 			{
 				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
 				Code:      &code1,
-					Name:      "Product 1 10%",
-					Scope:     "ITEM",
-					Status:    "ACTIVE",
-					Stackable: true,
-					StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-					EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-					Targets: []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
-					Actions: []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
+				Name:      "Product 1 10%",
+				Scope:     "ITEM",
+				Status:    "ACTIVE",
+				Stackable: true,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
+				Actions:   []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
 			},
 			{
 				BaseModel: model.BaseModel{ID: 2, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)},
 				Code:      &code2,
-					Name:      "Product 2 minus 100",
-					Scope:     "ITEM",
-					Status:    "ACTIVE",
-					Stackable: true,
-					StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-					EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-					Targets: []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(2)}},
-					Actions: []model.PromotionAction{{ActionType: "FIXED_AMOUNT_DISCOUNT", ValueAmount: int64Ptr(100), AppliesTo: "ITEM"}},
+				Name:      "Product 2 minus 100",
+				Scope:     "ITEM",
+				Status:    "ACTIVE",
+				Stackable: true,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(2)}},
+				Actions:   []model.PromotionAction{{ActionType: "FIXED_AMOUNT_DISCOUNT", ValueAmount: int64Ptr(100), AppliesTo: "ITEM"}},
 			},
 			{
-				BaseModel: model.BaseModel{ID: 3, CreatedAt: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)},
-				Code:      &code3,
-					Name:      "Cart 5%",
-					Scope:     "CART",
-					Status:    "ACTIVE",
-					Stackable: true,
-					StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-					EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-					ConflictGroup: &conflictGroup,
-					Targets: []model.PromotionTarget{{TargetType: "CART"}},
-				Actions: []model.PromotionAction{{ActionType: "CART_PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(500), AppliesTo: "CART"}},
+				BaseModel:     model.BaseModel{ID: 3, CreatedAt: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)},
+				Code:          &code3,
+				Name:          "Cart 5%",
+				Scope:         "CART",
+				Status:        "ACTIVE",
+				Stackable:     true,
+				StartsAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:        time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				ConflictGroup: &conflictGroup,
+				Targets:       []model.PromotionTarget{{TargetType: "CART"}},
+				Actions:       []model.PromotionAction{{ActionType: "CART_PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(500), AppliesTo: "CART"}},
 			},
 		},
 	})
@@ -74,20 +74,20 @@ func TestCalculator_SkipsInactivePromotion(t *testing.T) {
 	code := "OFF"
 	calculator := promotion.NewCalculator()
 	result, err := calculator.Calculate(nil, promotion.CalculationContext{
-		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+		Now:   time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
 		Items: []promotion.CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
 		Promotions: []model.Promotion{
 			{
 				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
 				Code:      &code,
-					Name:      "Inactive",
-					Scope:     "ITEM",
-					Status:    "INACTIVE",
-					Stackable: true,
-					StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-					EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-					Targets: []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
-					Actions: []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
+				Name:      "Inactive",
+				Scope:     "ITEM",
+				Status:    "INACTIVE",
+				Stackable: true,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
+				Actions:   []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
 			},
 		},
 	})
@@ -107,19 +107,19 @@ func TestCalculator_CustomRegisteredAction(t *testing.T) {
 	code := "LOYALTY"
 	calculator := promotion.NewCalculatorWithRegistry(registry)
 	result, err := calculator.Calculate(nil, promotion.CalculationContext{
-		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+		Now:   time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
 		Items: []promotion.CalculationItem{{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000}},
 		Promotions: []model.Promotion{
 			{
 				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
 				Code:      &code,
-					Name:      "Custom Action",
-					Scope:     "CART",
-					Status:    "ACTIVE",
-					Stackable: true,
-					StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-					EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-					Targets:   []model.PromotionTarget{{TargetType: "CART"}},
+				Name:      "Custom Action",
+				Scope:     "CART",
+				Status:    "ACTIVE",
+				Stackable: true,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "CART"}},
 				Actions:   []model.PromotionAction{{ActionType: "LOYALTY_BONUS", AppliesTo: "CART"}},
 			},
 		},
@@ -142,16 +142,16 @@ func TestCalculator_NonStackablePromotionBlocksLaterPromotions(t *testing.T) {
 		},
 		Promotions: []model.Promotion{
 			{
-				BaseModel:  model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
-				Code:       &code1,
-				Name:       "Item 10%",
-				Scope:      "ITEM",
-				Status:     "ACTIVE",
-				Stackable:  false,
-				StartsAt:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-				EndsAt:     time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-				Targets:    []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
-				Actions:    []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
+				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+				Code:      &code1,
+				Name:      "Item 10%",
+				Scope:     "ITEM",
+				Status:    "ACTIVE",
+				Stackable: false,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
+				Actions:   []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
 			},
 			{
 				BaseModel: model.BaseModel{ID: 2, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -199,16 +199,16 @@ func TestCalculator_NonStackablePromotionCannotBeAppliedAfterExistingPromotion(t
 				Actions:   []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
 			},
 			{
-				BaseModel:  model.BaseModel{ID: 2, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)},
-				Code:       &code2,
-				Name:       "Cart 5%",
-				Scope:      "CART",
-				Status:     "ACTIVE",
-				Stackable:  false,
-				StartsAt:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-				EndsAt:     time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-				Targets:    []model.PromotionTarget{{TargetType: "CART"}},
-				Actions:    []model.PromotionAction{{ActionType: "CART_PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(500), AppliesTo: "CART"}},
+				BaseModel: model.BaseModel{ID: 2, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)},
+				Code:      &code2,
+				Name:      "Cart 5%",
+				Scope:     "CART",
+				Status:    "ACTIVE",
+				Stackable: false,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "CART"}},
+				Actions:   []model.PromotionAction{{ActionType: "CART_PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(500), AppliesTo: "CART"}},
 			},
 		},
 	})
@@ -232,17 +232,17 @@ func TestCalculator_ExclusivePromotionStopsFurtherProcessing(t *testing.T) {
 		},
 		Promotions: []model.Promotion{
 			{
-				BaseModel:  model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
-				Code:       &code1,
-				Name:       "Item 10%",
-				Scope:      "ITEM",
-				Status:     "ACTIVE",
-				Stackable:  true,
-				Exclusive:  true,
-				StartsAt:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-				EndsAt:     time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-				Targets:    []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
-				Actions:    []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
+				BaseModel: model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+				Code:      &code1,
+				Name:      "Item 10%",
+				Scope:     "ITEM",
+				Status:    "ACTIVE",
+				Stackable: true,
+				Exclusive: true,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
+				Actions:   []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
 			},
 			{
 				BaseModel: model.BaseModel{ID: 2, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -264,6 +264,52 @@ func TestCalculator_ExclusivePromotionStopsFurtherProcessing(t *testing.T) {
 	assert.Equal(t, uint64(1), result.AppliedPromotions[0].PromotionID)
 	assert.Len(t, result.SkippedPromotions, 0)
 	assert.Contains(t, result.DecisionTrace, "exclusive=true")
+}
+
+func TestCalculator_StopProcessingStopsFurtherPromotions(t *testing.T) {
+	code1 := "ITEM_STOP"
+	code2 := "CART_5"
+
+	calculator := promotion.NewCalculator()
+	result, err := calculator.Calculate(nil, promotion.CalculationContext{
+		Now: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+		Items: []promotion.CalculationItem{
+			{ProductID: 1, SKU: "P1", ProductName: "P1", CategoryID: 1, Quantity: 1, UnitPrice: 100000},
+		},
+		Promotions: []model.Promotion{
+			{
+				BaseModel:      model.BaseModel{ID: 1, CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+				Code:           &code1,
+				Name:           "Item 10% Stop",
+				Scope:          "ITEM",
+				Status:         "ACTIVE",
+				Stackable:      true,
+				StopProcessing: true,
+				StartsAt:       time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:         time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:        []model.PromotionTarget{{TargetType: "PRODUCT", TargetID: uint64Ptr(1)}},
+				Actions:        []model.PromotionAction{{ActionType: "PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(1000), AppliesTo: "ITEM"}},
+			},
+			{
+				BaseModel: model.BaseModel{ID: 2, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)},
+				Code:      &code2,
+				Name:      "Cart 5%",
+				Scope:     "CART",
+				Status:    "ACTIVE",
+				Stackable: true,
+				StartsAt:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				EndsAt:    time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
+				Targets:   []model.PromotionTarget{{TargetType: "CART"}},
+				Actions:   []model.PromotionAction{{ActionType: "CART_PERCENTAGE_DISCOUNT", ValueBasisPoints: intPtr(500), AppliesTo: "CART"}},
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.AppliedPromotions, 1)
+	assert.Equal(t, uint64(1), result.AppliedPromotions[0].PromotionID)
+	assert.Len(t, result.SkippedPromotions, 0)
+	assert.Contains(t, result.DecisionTrace, "stop_processing=true")
 }
 
 func uint64Ptr(value uint64) *uint64 {

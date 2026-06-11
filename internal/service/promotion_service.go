@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	ErrPromotionNotFound            = errors.New("promotion not found")
+	ErrPromotionNotFound             = errors.New("promotion not found")
 	ErrPromotionCodeAlreadyExists    = errors.New("promotion code already exists")
 	ErrPromotionVersionConflict      = errors.New("promotion version conflict")
 	ErrInvalidPromotionConfig        = errors.New("invalid promotion config")
@@ -67,7 +67,7 @@ func (s *promotionService) Create(ctx context.Context, req dto.PromotionCreateRe
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(promotion).Error; err != nil {
+		if err := createPromotion(tx, promotion).Error; err != nil {
 			return err
 		}
 		return persistPromotionRules(tx, promotion.ID, req.Targets, req.Conditions, req.Actions)
@@ -79,6 +79,30 @@ func (s *promotionService) Create(ctx context.Context, req dto.PromotionCreateRe
 	}
 
 	return promotionSummaryFromModel(promotion), nil
+}
+
+func createPromotion(tx *gorm.DB, promotion *model.Promotion) *gorm.DB {
+	return tx.Select(promotionCreateColumns()).Create(promotion)
+}
+
+func promotionCreateColumns() []string {
+	return []string{
+		"Code",
+		"Name",
+		"Description",
+		"Scope",
+		"Priority",
+		"Stackable",
+		"Exclusive",
+		"StopProcessing",
+		"ConflictGroup",
+		"Status",
+		"StartsAt",
+		"EndsAt",
+		"MaxUsage",
+		"MaxUsagePerUser",
+		"Version",
+	}
 }
 
 func (s *promotionService) List(ctx context.Context, query dto.PromotionListQuery) (*dto.PromotionListResponse, error) {
@@ -452,21 +476,21 @@ func persistPromotionRules(tx *gorm.DB, promotionID uint64, targets []dto.Promot
 func promotionFromCreate(req dto.PromotionCreateRequest) *model.Promotion {
 	code := req.Code
 	return &model.Promotion{
-		Code:           &code,
-		Name:           req.Name,
-		Description:    derefStringPtr(req.Description),
-		Scope:          req.Scope,
-		Priority:       req.Priority,
-		Stackable:      req.Stackable,
-		Exclusive:      req.Exclusive,
-		StopProcessing: req.StopProcessing,
-		ConflictGroup:  req.ConflictGroup,
-		Status:         "DRAFT",
-		StartsAt:       req.StartsAt,
-		EndsAt:         req.EndsAt,
-		MaxUsage:       req.MaxUsage,
+		Code:            &code,
+		Name:            req.Name,
+		Description:     derefStringPtr(req.Description),
+		Scope:           req.Scope,
+		Priority:        req.Priority,
+		Stackable:       req.Stackable,
+		Exclusive:       req.Exclusive,
+		StopProcessing:  req.StopProcessing,
+		ConflictGroup:   req.ConflictGroup,
+		Status:          "DRAFT",
+		StartsAt:        req.StartsAt,
+		EndsAt:          req.EndsAt,
+		MaxUsage:        req.MaxUsage,
 		MaxUsagePerUser: req.MaxUsagePerUser,
-		Version:        1,
+		Version:         1,
 	}
 }
 
