@@ -31,10 +31,14 @@ type categoryService struct {
 	repo repository.CategoryRepository
 }
 
+// NewCategoryService wires category use cases to the category repository.
+// ประกอบ service สำหรับงานหมวดหมู่สินค้าเข้ากับ category repository
 func NewCategoryService(repo repository.CategoryRepository) CategoryService {
 	return &categoryService{repo: repo}
 }
 
+// Create validates and persists a new product category, including parent checks and duplicate protection.
+// ตรวจข้อมูลและบันทึกหมวดหมู่สินค้าใหม่ พร้อมเช็ก parent และกันชื่อซ้ำ
 func (s *categoryService) Create(ctx context.Context, req dto.CreateCategoryRequest) (*dto.CategoryResponse, error) {
 	if req.Name == "" {
 		return nil, ErrInvalidCategoryName
@@ -68,6 +72,8 @@ func (s *categoryService) Create(ctx context.Context, req dto.CreateCategoryRequ
 	return s.toResponse(category), nil
 }
 
+// Update modifies category fields while preventing invalid parents and circular hierarchies.
+// อัปเดตข้อมูลหมวดหมู่โดยกัน parent ที่ไม่ถูกต้องและโครงสร้างวนลูป
 func (s *categoryService) Update(ctx context.Context, id uint64, req dto.UpdateCategoryRequest) (*dto.CategoryResponse, error) {
 	category, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -125,6 +131,8 @@ func (s *categoryService) Update(ctx context.Context, id uint64, req dto.UpdateC
 	return s.toResponse(category), nil
 }
 
+// GetByID loads one category by ID and maps repository misses into a service error.
+// โหลดหมวดหมู่ตาม ID และแปลงกรณีหาไม่เจอให้เป็น error ระดับ service
 func (s *categoryService) GetByID(ctx context.Context, id uint64) (*dto.CategoryResponse, error) {
 	category, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -133,6 +141,8 @@ func (s *categoryService) GetByID(ctx context.Context, id uint64) (*dto.Category
 	return s.toResponse(category), nil
 }
 
+// List returns paginated categories and maps them into API-ready response items.
+// คืนรายการหมวดหมู่แบบแบ่งหน้าและแปลงเป็น response ที่ API ใช้งานได้
 func (s *categoryService) List(ctx context.Context, query dto.CategoryQuery) (*dto.CategoryListResponse, error) {
 	if query.Page < 1 {
 		query.Page = 1
@@ -164,6 +174,8 @@ func (s *categoryService) List(ctx context.Context, query dto.CategoryQuery) (*d
 	}, nil
 }
 
+// toResponse maps a category model into the public category response DTO.
+// แปลง category model ให้เป็น DTO สำหรับส่งกลับออก API
 func (s *categoryService) toResponse(c *model.ProductCategory) *dto.CategoryResponse {
 	return &dto.CategoryResponse{
 		ID:        c.ID,

@@ -15,10 +15,14 @@ type OrderHandler struct {
 	service service.OrderService
 }
 
+// NewOrderHandler binds order endpoints to the order service.
+// ผูก endpoint ด้าน order เข้ากับ service ที่ดูแล logic คำสั่งซื้อ
 func NewOrderHandler(service service.OrderService) *OrderHandler {
 	return &OrderHandler{service: service}
 }
 
+// Confirm handles idempotent order creation on top of a previously accepted pricing result.
+// ยืนยันการสร้างคำสั่งซื้อแบบ idempotent โดยอ้างอิงผลคำนวณราคาที่ผู้ใช้ยอมรับแล้ว
 func (h *OrderHandler) Confirm(c *fiber.Ctx) error {
 	idempotencyKey := strings.TrimSpace(c.Get("Idempotency-Key"))
 	if idempotencyKey == "" {
@@ -59,6 +63,8 @@ func (h *OrderHandler) Confirm(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(res)
 }
 
+// List returns paginated orders with optional filters from query parameters.
+// คืนรายการคำสั่งซื้อแบบแบ่งหน้าและรองรับการกรองผ่าน query string
 func (h *OrderHandler) List(c *fiber.Ctx) error {
 	query, err := parseOrderQuery(c)
 	if err != nil {
@@ -73,6 +79,8 @@ func (h *OrderHandler) List(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// GetByID returns one order and optionally checks that the provided userId is allowed to see it.
+// คืนรายละเอียดคำสั่งซื้อหนึ่งรายการและตรวจสิทธิ์จาก userId ถ้ามีการส่งมา
 func (h *OrderHandler) GetByID(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("orderId"), 10, 64)
 	if err != nil {
@@ -103,6 +111,8 @@ func (h *OrderHandler) GetByID(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// parseOrderQuery normalizes list filters and validates pagination, date range, and sort inputs.
+// แปลงและตรวจความถูกต้องของ query สำหรับ list orders เช่น page, date range และ sort
 func parseOrderQuery(c *fiber.Ctx) (dto.OrderListQuery, error) {
 	query := dto.OrderListQuery{}
 
@@ -175,6 +185,8 @@ func parseOrderQuery(c *fiber.Ctx) (dto.OrderListQuery, error) {
 	return query, nil
 }
 
+// normalizeOrderSort whitelists sortable order columns to keep raw SQL ordering safe.
+// จำกัดคอลัมน์ที่ใช้ sort ได้เพื่อป้องกันการส่งค่า order by ที่ไม่ปลอดภัย
 func normalizeOrderSort(raw string) (string, error) {
 	parts := strings.Fields(strings.ToLower(raw))
 	if len(parts) == 0 || len(parts) > 2 {

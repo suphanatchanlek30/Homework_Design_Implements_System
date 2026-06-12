@@ -21,18 +21,26 @@ type mockCategoryService struct {
 	updateFn func(id uint64, req dto.UpdateCategoryRequest) (*dto.CategoryResponse, error)
 }
 
+// Create returns the mocked category-create result used by handler tests.
+// คืนผลสร้าง category แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockCategoryService) Create(_ context.Context, req dto.CreateCategoryRequest) (*dto.CategoryResponse, error) {
 	return m.createFn(req)
 }
 
+// Update returns the mocked category-update result used by handler tests.
+// คืนผลอัปเดต category แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockCategoryService) Update(_ context.Context, id uint64, req dto.UpdateCategoryRequest) (*dto.CategoryResponse, error) {
 	return m.updateFn(id, req)
 }
 
+// GetByID returns the mocked category-detail result used by handler tests.
+// คืนผล category detail แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockCategoryService) GetByID(_ context.Context, id uint64) (*dto.CategoryResponse, error) {
 	return m.getFn(id)
 }
 
+// List returns the mocked category-list result used by handler tests.
+// คืนผล list categories แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockCategoryService) List(_ context.Context, query dto.CategoryQuery) (*dto.CategoryListResponse, error) {
 	return m.listFn(query)
 }
@@ -44,22 +52,32 @@ type mockProductService struct {
 	updateFn func(id uint64, req dto.UpdateProductRequest) (*dto.ProductResponse, error)
 }
 
+// Create returns the mocked product-create result used by handler tests.
+// คืนผลสร้างสินค้าแบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockProductService) Create(_ context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	return m.createFn(req)
 }
 
+// Update returns the mocked product-update result used by handler tests.
+// คืนผลอัปเดตสินค้าแบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockProductService) Update(_ context.Context, id uint64, req dto.UpdateProductRequest) (*dto.ProductResponse, error) {
 	return m.updateFn(id, req)
 }
 
+// GetByID returns the mocked product-detail result used by handler tests.
+// คืนผล product detail แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockProductService) GetByID(_ context.Context, id uint64) (*dto.ProductResponse, error) {
 	return m.getFn(id)
 }
 
+// List returns the mocked product-list result used by handler tests.
+// คืนผล list products แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockProductService) List(_ context.Context, query dto.ProductQuery) (*dto.ProductListResponse, error) {
 	return m.listFn(query)
 }
 
+// TestCategoryCreate_Conflict verifies duplicate categories return HTTP 409.
+// ตรวจว่าการสร้าง category ซ้ำจะตอบกลับ HTTP 409
 func TestCategoryCreate_Conflict(t *testing.T) {
 	app := fiber.New()
 	svc := &mockCategoryService{
@@ -82,6 +100,8 @@ func TestCategoryCreate_Conflict(t *testing.T) {
 	assert.Equal(t, "CATEGORY_ALREADY_EXISTS", body.Error.Code)
 }
 
+// TestCategoryList_InvalidQuery verifies invalid category list queries return HTTP 400.
+// ตรวจว่า query ที่ไม่ถูกต้องของ category list จะตอบกลับ HTTP 400
 func TestCategoryList_InvalidQuery(t *testing.T) {
 	app := fiber.New()
 	svc := &mockCategoryService{
@@ -103,6 +123,8 @@ func TestCategoryList_InvalidQuery(t *testing.T) {
 	assert.Equal(t, "INVALID_QUERY_PARAMETER", body.Error.Code)
 }
 
+// TestCategoryUpdate_Conflict verifies conflicting category updates return HTTP 409.
+// ตรวจว่าการอัปเดต category ที่ชนกันจะตอบกลับ HTTP 409
 func TestCategoryUpdate_Conflict(t *testing.T) {
 	app := fiber.New()
 	svc := &mockCategoryService{
@@ -125,6 +147,8 @@ func TestCategoryUpdate_Conflict(t *testing.T) {
 	assert.Equal(t, "CATEGORY_UPDATE_CONFLICT", body.Error.Code)
 }
 
+// TestProductCreate_Conflict verifies duplicate product SKUs return HTTP 409.
+// ตรวจว่าการสร้างสินค้าที่ SKU ซ้ำจะตอบกลับ HTTP 409
 func TestProductCreate_Conflict(t *testing.T) {
 	app := fiber.New()
 	svc := &mockProductService{
@@ -147,6 +171,8 @@ func TestProductCreate_Conflict(t *testing.T) {
 	assert.Equal(t, "SKU_ALREADY_EXISTS", body.Error.Code)
 }
 
+// TestProductUpdate_CategoryNotFound verifies updates with missing categories return HTTP 404.
+// ตรวจว่าการอัปเดตสินค้าด้วย category ที่ไม่มีอยู่จะตอบกลับ HTTP 404
 func TestProductUpdate_CategoryNotFound(t *testing.T) {
 	app := fiber.New()
 	svc := &mockProductService{
@@ -169,6 +195,8 @@ func TestProductUpdate_CategoryNotFound(t *testing.T) {
 	assert.Equal(t, "CATEGORY_NOT_FOUND", body.Error.Code)
 }
 
+// TestProductList_InvalidSort verifies unsafe sort expressions return HTTP 400.
+// ตรวจว่า sort ที่ไม่ปลอดภัยหรือไม่ถูกต้องจะตอบกลับ HTTP 400
 func TestProductList_InvalidSort(t *testing.T) {
 	app := fiber.New()
 	svc := &mockProductService{

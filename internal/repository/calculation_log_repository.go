@@ -27,10 +27,14 @@ type calculationLogRepository struct {
 	db *gorm.DB
 }
 
+// NewCalculationLogRepository builds the repository used to browse and replay stored pricing logs.
+// สร้าง repository สำหรับค้นหาและ replay pricing logs ที่บันทึกไว้
 func NewCalculationLogRepository(db *gorm.DB) CalculationLogRepository {
 	return &calculationLogRepository{db: db}
 }
 
+// List returns paginated calculation logs filtered by request, order, user, promotion, and time.
+// คืน calculation logs แบบแบ่งหน้าตาม request, order, user, promotion และช่วงเวลา
 func (r *calculationLogRepository) List(ctx context.Context, filter CalculationLogFilter, page, limit int, sort *string) ([]model.PromotionCalculationLog, int64, error) {
 	var logs []model.PromotionCalculationLog
 	var total int64
@@ -73,6 +77,8 @@ func (r *calculationLogRepository) List(ctx context.Context, filter CalculationL
 	return logs, total, nil
 }
 
+// FindByCalculationID loads one calculation log by its external calculation identifier.
+// โหลด calculation log หนึ่งรายการจาก calculation ID ที่ใช้ภายนอก
 func (r *calculationLogRepository) FindByCalculationID(ctx context.Context, calculationID string) (*model.PromotionCalculationLog, error) {
 	var logRow model.PromotionCalculationLog
 	if err := r.db.WithContext(ctx).Where("calculation_id = ?", calculationID).First(&logRow).Error; err != nil {
@@ -81,6 +87,8 @@ func (r *calculationLogRepository) FindByCalculationID(ctx context.Context, calc
 	return &logRow, nil
 }
 
+// calculationLogPromotionFilterClause builds the JSON filter expression for one promotion ID.
+// สร้างเงื่อนไข JSON สำหรับกรอง calculation log ตาม promotion ID
 func calculationLogPromotionFilterClause(promotionID uint64) string {
 	return fmt.Sprintf("JSON_CONTAINS(applied_promotions_json, JSON_OBJECT('promotionId', CAST(%d AS UNSIGNED)), '$')", promotionID)
 }

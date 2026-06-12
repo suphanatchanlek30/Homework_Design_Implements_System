@@ -10,10 +10,14 @@ type PricingHandler struct {
 	service service.PricingService
 }
 
+// NewPricingHandler binds HTTP pricing endpoints to the pricing service.
+// ผูก endpoint ด้าน pricing เข้ากับ service ที่ทำหน้าที่คำนวณราคา
 func NewPricingHandler(service service.PricingService) *PricingHandler {
 	return &PricingHandler{service: service}
 }
 
+// Calculate handles the final pricing endpoint used by downstream flows like order confirmation.
+// รับคำขอคำนวณราคาสุดท้ายเพื่อนำผลไปใช้ต่อใน flow อื่น เช่นยืนยันคำสั่งซื้อ
 func (h *PricingHandler) Calculate(c *fiber.Ctx) error {
 	var req dto.PricingCalculateRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -28,6 +32,8 @@ func (h *PricingHandler) Calculate(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Explain handles pricing requests where the caller wants the applied and skipped promotion trail.
+// รับคำขอคำนวณราคาแบบที่ผู้เรียกต้องการดูเหตุผลว่าโปรไหนถูกใช้หรือถูกข้าม
 func (h *PricingHandler) Explain(c *fiber.Ctx) error {
 	var req dto.PricingCalculateRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -42,6 +48,8 @@ func (h *PricingHandler) Explain(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// pricingErrorResponse maps pricing-domain errors into stable HTTP responses.
+// แปลง error ฝั่ง pricing ให้เป็น HTTP response ที่รูปแบบคงที่และคาดเดาได้
 func pricingErrorResponse(c *fiber.Ctx, err error) error {
 	switch err {
 	case service.ErrEmptyOrderItems:
@@ -60,4 +68,3 @@ func pricingErrorResponse(c *fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(newErrorResponse("INTERNAL_SERVER_ERROR", err.Error()))
 	}
 }
-

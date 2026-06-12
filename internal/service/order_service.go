@@ -39,6 +39,8 @@ type orderService struct {
 	pricing      PricingService
 }
 
+// NewOrderService wires confirmation logic on top of pricing, storage, and promotion usage checks.
+// ประกอบ dependency สำหรับยืนยันคำสั่งซื้อโดยอาศัย pricing, storage และการตรวจ usage ของโปร
 func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, promotionRepo repository.PromotionRepository, pricing PricingService) OrderService {
 	return &orderService{
 		db:            db,
@@ -48,6 +50,8 @@ func NewOrderService(db *gorm.DB, orderRepo repository.OrderRepository, promotio
 	}
 }
 
+// Confirm revalidates pricing, enforces idempotency, checks usage limits, and creates the final order transactionally.
+// คำนวณราคาใหม่ ตรวจ idempotency ตรวจ limit การใช้โปร และสร้าง order ภายใน transaction เดียว
 func (s *orderService) Confirm(ctx context.Context, idempotencyKey string, req dto.OrderConfirmRequest) (*dto.OrderConfirmResponse, error) {
 	if idempotencyKey == "" {
 		return nil, ErrIdempotencyKeyRequired
@@ -172,6 +176,8 @@ func (s *orderService) Confirm(ctx context.Context, idempotencyKey string, req d
 	return s.orderToConfirmResponse(confirmed)
 }
 
+// List returns paginated order summaries for backoffice or audit use cases.
+// คืนรายการสรุปคำสั่งซื้อแบบแบ่งหน้าเพื่อใช้ใน backoffice หรือ audit
 func (s *orderService) List(ctx context.Context, query dto.OrderListQuery) (*dto.OrderListResponse, error) {
 	page := normalizePage(query.Page)
 	limit := normalizeLimit(query.Limit)
@@ -197,6 +203,8 @@ func (s *orderService) List(ctx context.Context, query dto.OrderListQuery) (*dto
 	}, nil
 }
 
+// GetByID loads a single order and optionally enforces that the caller owns it.
+// โหลดคำสั่งซื้อหนึ่งรายการและตรวจสิทธิ์ว่าเป็นของผู้เรียกหรือไม่ถ้ามีการระบุ user
 func (s *orderService) GetByID(ctx context.Context, id uint64, requesterUserID *uint64) (*dto.OrderDetailResponse, error) {
 	order, err := s.orderRepo.FindByID(ctx, id)
 	if err != nil {
@@ -208,6 +216,8 @@ func (s *orderService) GetByID(ctx context.Context, id uint64, requesterUserID *
 	return orderDetailResponse(order)
 }
 
+// findCalculationLog ensures the order confirmation request points at a known pricing calculation.
+// ตรวจว่าการยืนยัน order อ้างถึง calculation log ที่มีอยู่จริง
 func (s *orderService) findCalculationLog(ctx context.Context, calculationID string) (*model.PromotionCalculationLog, error) {
 	var logRow model.PromotionCalculationLog
 	if err := s.db.WithContext(ctx).Where("calculation_id = ?", calculationID).First(&logRow).Error; err != nil {
@@ -216,6 +226,8 @@ func (s *orderService) findCalculationLog(ctx context.Context, calculationID str
 	return &logRow, nil
 }
 
+// lockAndValidatePromotionUsage serializes usage checks so max-usage rules stay correct under concurrent confirms.
+// ล็อกและตรวจ usage ของ promotion เพื่อให้ max usage ยังถูกต้องแม้มี confirm พร้อมกันหลายคำขอ
 func (s *orderService) lockAndValidatePromotionUsage(tx *gorm.DB, result *dto.PricingResultResponse, userID *uint64) error {
 	for _, applied := range result.AppliedPromotions {
 		var promotion model.Promotion
@@ -246,6 +258,8 @@ func (s *orderService) lockAndValidatePromotionUsage(tx *gorm.DB, result *dto.Pr
 	return nil
 }
 
+// orderToConfirmResponse expands a stored order into the same detail shape returned from the confirm endpoint.
+// แปลง order ที่บันทึกแล้วให้มีรูปแบบเดียวกับ response ของ endpoint confirm
 func (s *orderService) orderToConfirmResponse(order *model.Order) (*dto.OrderConfirmResponse, error) {
 	detail, err := orderDetailResponse(order)
 	if err != nil {
@@ -254,6 +268,8 @@ func (s *orderService) orderToConfirmResponse(order *model.Order) (*dto.OrderCon
 	return &dto.OrderConfirmResponse{OrderDetailResponse: *detail}, nil
 }
 
+// orderSummaryResponse maps the persisted order row into the lightweight list response.
+// แปลง order model เป็น response แบบย่อสำหรับหน้า list
 func orderSummaryResponse(order *model.Order) dto.OrderSummaryResponse {
 	return dto.OrderSummaryResponse{
 		OrderID:       order.ID,
@@ -270,6 +286,8 @@ func orderSummaryResponse(order *model.Order) dto.OrderSummaryResponse {
 	}
 }
 
+// orderDetailResponse decodes embedded promotion snapshots and joins them with stored order items.
+// แตก snapshot ของ promotion และประกอบรวมกับ order items ที่เก็บไว้ให้เป็น response เต็ม
 func orderDetailResponse(order *model.Order) (*dto.OrderDetailResponse, error) {
 	applied := make([]dto.PricingPromotionAppliedResponse, 0)
 	if len(order.AppliedPromotionsJSON) > 0 {
@@ -309,6 +327,8 @@ func orderDetailResponse(order *model.Order) (*dto.OrderDetailResponse, error) {
 	}, nil
 }
 
+// toPricingItems reuses the pricing flow by translating order items into pricing request items.
+// แปลง order items ให้กลับไปอยู่ในรูปแบบ input ของ pricing flow เดิม
 func toPricingItems(items []dto.OrderItemRequest) []dto.PricingItemRequest {
 	res := make([]dto.PricingItemRequest, len(items))
 	for i, item := range items {
@@ -317,6 +337,8 @@ func toPricingItems(items []dto.OrderItemRequest) []dto.PricingItemRequest {
 	return res
 }
 
+// toPricingShipping reuses the pricing flow by translating the optional shipping payload.
+// แปลงข้อมูล shipping ของ order ให้ใช้ซ้ำกับ pricing flow ได้
 func toPricingShipping(shipping *dto.OrderShippingRequest) *dto.PricingShippingRequest {
 	if shipping == nil {
 		return nil
@@ -324,6 +346,8 @@ func toPricingShipping(shipping *dto.OrderShippingRequest) *dto.PricingShippingR
 	return &dto.PricingShippingRequest{Method: shipping.Method}
 }
 
+// hashOrderRequest creates a stable signature used to validate repeated idempotent requests.
+// สร้างลายเซ็นคงที่ของ request เพื่อเทียบคำขอ idempotent ที่ส่งซ้ำเข้ามา
 func hashOrderRequest(req dto.OrderConfirmRequest) (string, error) {
 	payload, err := json.Marshal(req)
 	if err != nil {
@@ -333,11 +357,15 @@ func hashOrderRequest(req dto.OrderConfirmRequest) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// mustJSON is a small helper for embedding response snapshots into order records.
+// helper เล็ก ๆ สำหรับ marshal ข้อมูล snapshot ลงใน record ของ order
 func mustJSON(value any) []byte {
 	raw, _ := json.Marshal(value)
 	return raw
 }
 
+// generateOrderNo creates a unique order number using the current timestamp.
+// สร้างเลข order ที่ไม่ซ้ำโดยอิงเวลาปัจจุบัน
 func generateOrderNo() string {
 	return fmt.Sprintf("ORD-%d", time.Now().UnixNano())
 }

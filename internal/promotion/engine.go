@@ -80,10 +80,14 @@ type calculator struct {
 	registry *Registry
 }
 
+// NewCalculator builds the default promotion calculator with built-in strategies.
+// สร้าง calculator มาตรฐานพร้อม strategy พื้นฐานที่ระบบรองรับมาให้แล้ว
 func NewCalculator() Calculator {
 	return &calculator{registry: NewRegistry()}
 }
 
+// NewCalculatorWithRegistry lets tests or future extensions inject custom strategies.
+// เปิดให้ test หรือส่วนขยายในอนาคตส่ง registry แบบกำหนดเองเข้ามาได้
 func NewCalculatorWithRegistry(registry *Registry) Calculator {
 	if registry == nil {
 		registry = NewRegistry()
@@ -91,6 +95,8 @@ func NewCalculatorWithRegistry(registry *Registry) Calculator {
 	return &calculator{registry: registry}
 }
 
+// Calculate is the main promotion loop: sort promos, enforce policy, apply discounts, and summarize the result.
+// เป็นลูปหลักของการคำนวณ promotion ตั้งแต่เรียงลำดับ ตรวจ policy ลงส่วนลด และสรุปผลลัพธ์
 func (c *calculator) Calculate(ctx context.Context, input CalculationContext) (*CalculationResult, error) {
 	_ = ctx
 
@@ -227,6 +233,8 @@ func (c *calculator) Calculate(ctx context.Context, input CalculationContext) (*
 	return result, nil
 }
 
+// applyPromotion resolves every action in a promotion and then writes the discount back to items or cart totals.
+// ประมวลผล action ทุกตัวของ promotion แล้วกระจายส่วนลดกลับไปที่ item หรือทั้ง cart
 func applyPromotion(registry *Registry, promotion model.Promotion, result *CalculationResult, currentCartBase int64) (int64, error) {
 	matches := matchedItemIndexes(promotion, result.Items)
 	discount := int64(0)
@@ -256,6 +264,8 @@ func applyPromotion(registry *Registry, promotion model.Promotion, result *Calcu
 	return discount, nil
 }
 
+// evaluateConditions checks all configured conditions and returns the first failure reason when a promo should be skipped.
+// ตรวจทุก condition ของ promotion และคืนเหตุผลแรกที่ทำให้ต้อง skip ถ้าไม่ผ่าน
 func evaluateConditions(registry *Registry, promotion model.Promotion, input CalculationContext, cartBase int64) (bool, string) {
 	if len(promotion.Conditions) == 0 {
 		return true, ""
@@ -281,6 +291,8 @@ func evaluateConditions(registry *Registry, promotion model.Promotion, input Cal
 	return true, ""
 }
 
+// percentageActionHandler calculates percentage-based discounts for item or cart scope.
+// คำนวณส่วนลดแบบเปอร์เซ็นต์ทั้งกรณี item scope และ cart scope
 func percentageActionHandler(input ActionContext) (int64, error) {
 	if input.Action.ValueBasisPoints == nil {
 		return 0, nil
@@ -299,6 +311,8 @@ func percentageActionHandler(input ActionContext) (int64, error) {
 	return discount, nil
 }
 
+// fixedAmountActionHandler calculates fixed-amount discounts and caps them at the available base.
+// คำนวณส่วนลดแบบจำนวนเงินคงที่และกันไม่ให้เกินยอดที่ลดได้จริง
 func fixedAmountActionHandler(input ActionContext) (int64, error) {
 	if input.Action.ValueAmount == nil {
 		return 0, nil
@@ -320,10 +334,14 @@ func fixedAmountActionHandler(input ActionContext) (int64, error) {
 	return discount, nil
 }
 
+// freeShippingActionHandler is a placeholder until shipping cost is modeled separately from item totals.
+// ตอนนี้เป็น placeholder เพราะระบบยังไม่ได้แยกต้นทุนค่าส่งออกจากยอดสินค้า
 func freeShippingActionHandler(input ActionContext) (int64, error) {
 	return 0, nil
 }
 
+// minOrderAmountConditionHandler passes only when the current cart base reaches the configured threshold.
+// ผ่านได้เมื่อยอดปัจจุบันของตะกร้าถึงขั้นต่ำตามที่ condition กำหนด
 func minOrderAmountConditionHandler(input ConditionContext) (bool, string, error) {
 	value := extractInt(input.Condition.ValueJSON)
 	if input.CartBase < value {
@@ -332,6 +350,8 @@ func minOrderAmountConditionHandler(input ConditionContext) (bool, string, error
 	return true, "", nil
 }
 
+// maxOrderAmountConditionHandler passes only when the current cart base stays below the configured ceiling.
+// ผ่านได้เมื่อยอดปัจจุบันของตะกร้ายังไม่เกินเพดานที่ condition กำหนด
 func maxOrderAmountConditionHandler(input ConditionContext) (bool, string, error) {
 	value := extractInt(input.Condition.ValueJSON)
 	if input.CartBase > value {
@@ -340,6 +360,8 @@ func maxOrderAmountConditionHandler(input ConditionContext) (bool, string, error
 	return true, "", nil
 }
 
+// couponCodeConditionHandler checks whether one of the submitted coupon codes matches the promotion rule.
+// ตรวจว่ามี coupon code ที่ผู้ใช้ส่งมาตรงกับกติกาของ promotion หรือไม่
 func couponCodeConditionHandler(input ConditionContext) (bool, string, error) {
 	want := extractString(input.Condition.ValueJSON)
 	for _, coupon := range input.Input.CouponCodes {
@@ -350,6 +372,8 @@ func couponCodeConditionHandler(input ConditionContext) (bool, string, error) {
 	return false, "COUPON_CODE_MISMATCH", nil
 }
 
+// paymentMethodConditionHandler restricts a promotion to a specific payment method.
+// บังคับให้ promotion ใช้ได้เฉพาะกับ payment method ที่กำหนด
 func paymentMethodConditionHandler(input ConditionContext) (bool, string, error) {
 	want := extractString(input.Condition.ValueJSON)
 	if input.Input.PaymentMethod == nil || !strings.EqualFold(*input.Input.PaymentMethod, want) {
@@ -358,6 +382,8 @@ func paymentMethodConditionHandler(input ConditionContext) (bool, string, error)
 	return true, "", nil
 }
 
+// productConditionHandler requires at least one requested product ID to match the condition payload.
+// ต้องมีสินค้าอย่างน้อยหนึ่งตัวในคำขอที่ product ID ตรงกับ condition นี้
 func productConditionHandler(input ConditionContext) (bool, string, error) {
 	want := extractUint(input.Condition.ValueJSON)
 	for _, item := range input.Input.Items {
@@ -368,6 +394,8 @@ func productConditionHandler(input ConditionContext) (bool, string, error) {
 	return false, "PRODUCT_CONDITION_MISMATCH", nil
 }
 
+// categoryConditionHandler requires at least one requested category ID to match the condition payload.
+// ต้องมีสินค้าอย่างน้อยหนึ่งตัวในคำขอที่ category ID ตรงกับ condition นี้
 func categoryConditionHandler(input ConditionContext) (bool, string, error) {
 	want := extractUint(input.Condition.ValueJSON)
 	for _, item := range input.Input.Items {
@@ -378,6 +406,8 @@ func categoryConditionHandler(input ConditionContext) (bool, string, error) {
 	return false, "CATEGORY_CONDITION_MISMATCH", nil
 }
 
+// dateRangeConditionHandler applies a condition-specific time window on top of the promotion start/end dates.
+// ตรวจช่วงเวลาเพิ่มเติมของ condition นอกเหนือจากช่วงเวลาเริ่มและจบของ promotion
 func dateRangeConditionHandler(input ConditionContext) (bool, string, error) {
 	var window struct {
 		StartsAt time.Time `json:"startsAt"`
@@ -392,10 +422,14 @@ func dateRangeConditionHandler(input ConditionContext) (bool, string, error) {
 	return true, "", nil
 }
 
+// passthroughConditionHandler keeps future condition types valid in the engine until real logic is added.
+// ช่วยให้ condition บางชนิดผ่าน engine ไปก่อนได้จนกว่าจะมี logic จริงมาแทน
 func passthroughConditionHandler(input ConditionContext) (bool, string, error) {
 	return true, "", nil
 }
 
+// applyToItems spreads a discount only across matched items and prevents any item total from going negative.
+// กระจายส่วนลดไปเฉพาะ item ที่ match และกันไม่ให้ยอดของ item ใดติดลบ
 func applyToItems(items []CalculationItem, discount int64, promotion model.Promotion) int64 {
 	if discount <= 0 || len(items) == 0 {
 		return 0
@@ -448,6 +482,8 @@ func applyToItems(items []CalculationItem, discount int64, promotion model.Promo
 	return applied
 }
 
+// applyToCart spreads a cart-level discount proportionally across all current item totals.
+// กระจายส่วนลดระดับ cart แบบตามสัดส่วนไปยังยอดปัจจุบันของ item ทุกตัว
 func applyToCart(items []CalculationItem, discount int64, cartBase int64) int64 {
 	if discount <= 0 || cartBase <= 0 {
 		return 0
@@ -488,6 +524,8 @@ func applyToCart(items []CalculationItem, discount int64, cartBase int64) int64 
 	return discount - remaining
 }
 
+// evaluateTargets answers whether a cart is even eligible to consider a promotion before condition checks run.
+// ตรวจว่าตะกร้านี้มีสิทธิ์ถูกพิจารณาโปรนี้หรือไม่ก่อนจะไปเช็ก condition ต่อ
 func evaluateTargets(promotion model.Promotion, items []CalculationItem) bool {
 	if len(promotion.Targets) == 0 {
 		return true
@@ -519,6 +557,8 @@ func evaluateTargets(promotion model.Promotion, items []CalculationItem) bool {
 	return false
 }
 
+// matchedItemIndexes finds which items a promotion should directly discount when it applies at item scope.
+// หา index ของ item ที่ promotion ควรลงส่วนลดโดยตรงเมื่อเป็น item scope
 func matchedItemIndexes(promotion model.Promotion, items []CalculationItem) []int {
 	indexes := make([]int, 0)
 	for i := range items {
@@ -550,6 +590,8 @@ func matchedItemIndexes(promotion model.Promotion, items []CalculationItem) []in
 	return indexes
 }
 
+// isPromotionActive combines status and date window checks used by the runtime loop.
+// ตรวจทั้ง status และช่วงเวลาใช้งานว่า promotion ยัง active อยู่หรือไม่
 func isPromotionActive(promotion model.Promotion, now time.Time) bool {
 	if promotion.Status != "ACTIVE" {
 		return false
@@ -557,6 +599,8 @@ func isPromotionActive(promotion model.Promotion, now time.Time) bool {
 	return !now.Before(promotion.StartsAt) && !now.After(promotion.EndsAt)
 }
 
+// isAllowedScope keeps the runtime strict about the known promotion scopes.
+// จำกัดให้ runtime ยอมรับเฉพาะ scope ที่ระบบรู้จักเท่านั้น
 func isAllowedScope(scope string) bool {
 	switch scope {
 	case "ITEM", "CART", "COUPON", "SHIPPING":
@@ -566,6 +610,8 @@ func isAllowedScope(scope string) bool {
 	}
 }
 
+// scopeRank defines the execution order between ITEM, CART, COUPON, and SHIPPING promotions.
+// กำหนดลำดับการทำงานของ promotion ตาม scope เช่น ITEM ก่อน CART
 func scopeRank(scope string) int {
 	switch scope {
 	case string(ScopeItem):
@@ -581,12 +627,16 @@ func scopeRank(scope string) int {
 	}
 }
 
+// cloneItems makes the calculator mutate a working copy instead of the caller's input slice.
+// ทำสำเนา items เพื่อให้ calculator แก้ค่าบนสำเนาแทนข้อมูลต้นฉบับ
 func cloneItems(items []CalculationItem) []CalculationItem {
 	cloned := make([]CalculationItem, len(items))
 	copy(cloned, items)
 	return cloned
 }
 
+// computeCurrentCartBase sums the running final amounts after each promotion application.
+// รวมยอดสุทธิของ item ทั้งหมดหลังจากแต่ละ promotion ถูกนำไปใช้แล้ว
 func computeCurrentCartBase(items []CalculationItem) int64 {
 	total := int64(0)
 	for _, item := range items {
@@ -595,10 +645,14 @@ func computeCurrentCartBase(items []CalculationItem) int64 {
 	return total
 }
 
+// computeFinalTotal is currently the same as the running cart base because shipping is not modeled separately.
+// ตอนนี้ final total เท่ากับ cart base เพราะระบบยังไม่ได้แยกค่าส่งออกมาเป็นอีกก้อน
 func computeFinalTotal(items []CalculationItem) int64 {
 	return computeCurrentCartBase(items)
 }
 
+// skipped standardizes how a skipped promotion is recorded in the response payload.
+// สร้างข้อมูล skipped promotion ในรูปแบบมาตรฐานสำหรับ response
 func skipped(promotion model.Promotion, reason string) SkippedPromotion {
 	return SkippedPromotion{
 		PromotionID: promotion.ID,
@@ -609,6 +663,8 @@ func skipped(promotion model.Promotion, reason string) SkippedPromotion {
 	}
 }
 
+// derefString safely normalizes nullable promo codes into response-friendly strings.
+// แปลง promo code ที่อาจเป็น nil ให้กลายเป็น string ที่ response ใช้งานง่าย
 func derefString(value *string) string {
 	if value == nil {
 		return ""
@@ -616,18 +672,24 @@ func derefString(value *string) string {
 	return *value
 }
 
+// extractInt decodes numeric condition payloads stored in JSON.
+// แตก JSON ของ condition ที่เป็นตัวเลขจำนวนเต็ม
 func extractInt(raw []byte) int64 {
 	var value int64
 	_ = json.Unmarshal(raw, &value)
 	return value
 }
 
+// extractUint decodes unsigned numeric condition payloads stored in JSON.
+// แตก JSON ของ condition ที่เป็นตัวเลขแบบ unsigned
 func extractUint(raw []byte) uint64 {
 	var value uint64
 	_ = json.Unmarshal(raw, &value)
 	return value
 }
 
+// extractString decodes string condition payloads stored in JSON.
+// แตก JSON ของ condition ที่เก็บเป็นข้อความ
 func extractString(raw []byte) string {
 	var value string
 	_ = json.Unmarshal(raw, &value)

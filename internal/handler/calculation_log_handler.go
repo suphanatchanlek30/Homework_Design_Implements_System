@@ -15,10 +15,14 @@ type CalculationLogHandler struct {
 	service service.CalculationLogService
 }
 
+// NewCalculationLogHandler binds audit endpoints to the calculation log service.
+// ผูก endpoint ด้าน audit เข้ากับ service ที่ดูแล calculation log
 func NewCalculationLogHandler(service service.CalculationLogService) *CalculationLogHandler {
 	return &CalculationLogHandler{service: service}
 }
 
+// List returns paginated calculation logs for audit and troubleshooting use cases.
+// คืนรายการ calculation logs แบบแบ่งหน้าเพื่อใช้ตรวจสอบย้อนหลังหรือ debug
 func (h *CalculationLogHandler) List(c *fiber.Ctx) error {
 	query, err := parseCalculationLogQuery(c)
 	if err != nil {
@@ -33,6 +37,8 @@ func (h *CalculationLogHandler) List(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// GetByCalculationID returns one calculation log with its stored promotions and snapshot payload.
+// คืน calculation log หนึ่งรายการพร้อม promotion ที่เกี่ยวข้องและ snapshot ที่เก็บไว้
 func (h *CalculationLogHandler) GetByCalculationID(c *fiber.Ctx) error {
 	calculationID := strings.TrimSpace(c.Params("calculationId"))
 	if calculationID == "" {
@@ -47,6 +53,8 @@ func (h *CalculationLogHandler) GetByCalculationID(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Replay reruns the original pricing input and compares the replayed result against the saved snapshot.
+// นำ input เดิมมาคำนวณใหม่แล้วเทียบผลกับ snapshot ที่เคยบันทึกไว้
 func (h *CalculationLogHandler) Replay(c *fiber.Ctx) error {
 	calculationID := strings.TrimSpace(c.Params("calculationId"))
 	if calculationID == "" {
@@ -66,6 +74,8 @@ func (h *CalculationLogHandler) Replay(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// parseCalculationLogQuery validates filters for browsing stored calculation logs.
+// ตรวจความถูกต้องของ query สำหรับค้นหา calculation logs ที่บันทึกไว้
 func parseCalculationLogQuery(c *fiber.Ctx) (dto.CalculationLogQuery, error) {
 	query := dto.CalculationLogQuery{}
 
@@ -129,6 +139,8 @@ func parseCalculationLogQuery(c *fiber.Ctx) (dto.CalculationLogQuery, error) {
 	return query, nil
 }
 
+// normalizeCalculationLogSort whitelists sortable audit columns.
+// จำกัดคอลัมน์ที่ใช้ sort ได้ในหน้า audit log
 func normalizeCalculationLogSort(raw string) (string, error) {
 	parts := strings.Fields(strings.ToLower(raw))
 	if len(parts) == 0 || len(parts) > 2 {
@@ -162,6 +174,8 @@ func normalizeCalculationLogSort(raw string) (string, error) {
 	return column + " " + strings.ToUpper(direction), nil
 }
 
+// calculationLogErrorResponse centralizes HTTP mapping for audit and replay errors.
+// รวมการแปลง error ของ calculation log และ replay ให้เป็น HTTP response จุดเดียว
 func calculationLogErrorResponse(c *fiber.Ctx, err error) error {
 	switch err {
 	case service.ErrCalculationLogNotFound:

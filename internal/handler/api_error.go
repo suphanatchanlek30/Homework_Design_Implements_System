@@ -9,6 +9,8 @@ type ErrorResponse struct {
 	Error ErrorDetail `json:"error"`
 }
 
+// newErrorResponse builds the shared API error payload used by handlers.
+// สร้าง payload error มาตรฐานที่ handler ทุกตัวใช้ร่วมกัน
 func newErrorResponse(code, message string) ErrorResponse {
 	return ErrorResponse{
 		Error: ErrorDetail{

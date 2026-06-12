@@ -21,6 +21,8 @@ type categoryRepository struct {
 	db *gorm.DB
 }
 
+// NewCategoryRepository builds the category repository with shared CRUD helpers and custom queries.
+// สร้าง category repository พร้อม helper CRUD ทั่วไปและ query เฉพาะทาง
 func NewCategoryRepository(db *gorm.DB) CategoryRepository {
 	return &categoryRepository{
 		BaseRepository: NewBaseRepository[model.ProductCategory](db),
@@ -28,6 +30,8 @@ func NewCategoryRepository(db *gorm.DB) CategoryRepository {
 	}
 }
 
+// List returns paginated categories filtered by status, parent, keyword, and sort order.
+// คืนรายการหมวดหมู่แบบแบ่งหน้าตามตัวกรอง status, parent, keyword และลำดับ sort
 func (r *categoryRepository) List(ctx context.Context, status *string, parentID *uint64, keyword *string, page, limit int, sort *string) ([]model.ProductCategory, int64, error) {
 	var categories []model.ProductCategory
 	var total int64
@@ -62,6 +66,8 @@ func (r *categoryRepository) List(ctx context.Context, status *string, parentID 
 	return categories, total, nil
 }
 
+// FindByNameAndParent finds one category by its name within the same parent bucket.
+// ค้นหาหมวดหมู่จากชื่อภายใต้ parent เดียวกันเพื่อใช้ตรวจข้อมูลซ้ำ
 func (r *categoryRepository) FindByNameAndParent(ctx context.Context, name string, parentID *uint64) (*model.ProductCategory, error) {
 	var category model.ProductCategory
 
@@ -79,7 +85,8 @@ func (r *categoryRepository) FindByNameAndParent(ctx context.Context, name strin
 	return &category, nil
 }
 
-// FindDescendants recursively finds all descendants to prevent circular hierarchy
+// FindDescendants recursively finds all descendants to prevent circular hierarchy.
+// ค้นหาลูกหลานทั้งหมดของหมวดหมู่เพื่อใช้กันโครงสร้างแบบวนลูป
 func (r *categoryRepository) FindDescendants(ctx context.Context, categoryID uint64) ([]model.ProductCategory, error) {
 	// A simpler approach for MySQL 8+ is recursive CTE, but here we can just use preload or recursive function.
 	// For simplicity in this example without recursive CTE, we might just query all and build tree, 

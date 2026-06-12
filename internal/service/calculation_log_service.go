@@ -35,6 +35,8 @@ type storedCalculationSnapshot struct {
 	Explain  bool                        `json:"explain"`
 }
 
+// NewCalculationLogService exposes list, detail, and replay operations over persisted pricing logs.
+// เปิดความสามารถสำหรับ list, detail และ replay บน pricing logs ที่บันทึกไว้
 func NewCalculationLogService(repo repository.CalculationLogRepository, pricing PricingService) CalculationLogService {
 	return &calculationLogService{
 		repo:    repo,
@@ -42,6 +44,8 @@ func NewCalculationLogService(repo repository.CalculationLogRepository, pricing 
 	}
 }
 
+// List returns paginated calculation logs and derives summary counts from each stored snapshot.
+// คืน calculation logs แบบแบ่งหน้าและสรุปจำนวนโปรที่ถูกใช้หรือถูกข้ามจาก snapshot
 func (s *calculationLogService) List(ctx context.Context, query dto.CalculationLogQuery) (*dto.CalculationLogListResponse, error) {
 	page := normalizePage(query.Page)
 	limit := normalizeLimit(query.Limit)
@@ -78,6 +82,8 @@ func (s *calculationLogService) List(ctx context.Context, query dto.CalculationL
 	}, nil
 }
 
+// GetByCalculationID expands a single calculation log into its full audit payload.
+// แตก calculation log หนึ่งรายการออกเป็นข้อมูล audit ฉบับเต็ม
 func (s *calculationLogService) GetByCalculationID(ctx context.Context, calculationID string) (*dto.CalculationLogDetailResponse, error) {
 	logRow, err := s.repo.FindByCalculationID(ctx, calculationID)
 	if err != nil {
@@ -101,6 +107,8 @@ func (s *calculationLogService) GetByCalculationID(ctx context.Context, calculat
 	}, nil
 }
 
+// Replay reruns the original request in preview mode and compares the new result against the stored snapshot.
+// นำ request เดิมมารันใหม่แบบ preview แล้วเทียบผลกับ snapshot ที่เก็บไว้
 func (s *calculationLogService) Replay(ctx context.Context, calculationID string, req dto.CalculationLogReplayRequest) (*dto.CalculationLogReplayResponse, error) {
 	mode := req.Mode
 	if mode == "" {
@@ -138,6 +146,8 @@ func (s *calculationLogService) Replay(ctx context.Context, calculationID string
 	}, nil
 }
 
+// summaryFromLog derives lightweight counters and totals from the stored snapshot blob.
+// ดึงตัวเลขสรุปแบบย่อจาก snapshot ที่เก็บเป็น JSON blob
 func (s *calculationLogService) summaryFromLog(logRow *model.PromotionCalculationLog) (*dto.CalculationLogSummaryResponse, error) {
 	var snapshot storedCalculationSnapshot
 	if err := json.Unmarshal(logRow.CalculationSnapshotJSON, &snapshot); err != nil {
@@ -159,6 +169,8 @@ func (s *calculationLogService) summaryFromLog(logRow *model.PromotionCalculatio
 	}, nil
 }
 
+// decodeStoredCalculationSnapshot returns both the typed replay payload and the generic JSON body used in responses.
+// แปลง snapshot ที่เก็บไว้ให้ได้ทั้งโครงสร้างแบบ typed และ map ทั่วไปสำหรับ response
 func decodeStoredCalculationSnapshot(raw []byte) (map[string]any, storedCalculationSnapshot, error) {
 	var snapshot storedCalculationSnapshot
 	if err := json.Unmarshal(raw, &snapshot); err != nil {
@@ -171,6 +183,8 @@ func decodeStoredCalculationSnapshot(raw []byte) (map[string]any, storedCalculat
 	return snapshotMap, snapshot, nil
 }
 
+// comparePricingResults highlights business-level differences between the stored result and a replayed result.
+// เปรียบเทียบผลคำนวณเดิมกับผล replay แล้วสรุปความต่างในระดับ business result
 func comparePricingResults(original, replay dto.PricingResultResponse) []string {
 	differences := make([]string, 0)
 	if original.OriginalTotal != replay.OriginalTotal {
@@ -197,6 +211,8 @@ func comparePricingResults(original, replay dto.PricingResultResponse) []string 
 	return differences
 }
 
+// normalizePricingItems strips fields that are irrelevant to replay equality checks.
+// ตัด field ที่ไม่สำคัญต่อการเทียบ replay ออกก่อนตรวจความเท่ากัน
 func normalizePricingItems(items []dto.PricingItemResponse) []dto.PricingItemResponse {
 	cloned := make([]dto.PricingItemResponse, len(items))
 	for i, item := range items {
