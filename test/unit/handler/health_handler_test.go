@@ -11,6 +11,8 @@ import (
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/handler"
 )
 
+// TestHealthz verifies the liveness endpoint returns an UP response.
+// ตรวจว่า endpoint liveness ตอบกลับสถานะ UP ตามที่คาดไว้
 func TestHealthz(t *testing.T) {
 	app := fiber.New()
 	h := handler.NewHealthHandler(nil) // DB not needed for Healthz
@@ -27,6 +29,8 @@ func TestHealthz(t *testing.T) {
 	assert.Equal(t, "UP", res.Status)
 }
 
+// TestReadyz_NotReady verifies the readiness endpoint reports NOT_READY when DB is unavailable.
+// ตรวจว่า endpoint readiness จะรายงาน NOT_READY เมื่อไม่มีฐานข้อมูลพร้อมใช้งาน
 func TestReadyz_NotReady(t *testing.T) {
 	app := fiber.New()
 	h := handler.NewHealthHandler(nil) // Nil DB should trigger NOT_READY

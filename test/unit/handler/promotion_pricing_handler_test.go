@@ -26,30 +26,48 @@ type mockPromotionService struct {
 	usagesFn   func(id uint64, query dto.PromotionUsageQuery) (*dto.PromotionUsageResponse, error)
 }
 
+// Create returns the mocked promotion-create result used by handler tests.
+// คืนผลสร้าง promotion แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Create(_ context.Context, req dto.PromotionCreateRequest) (*dto.PromotionSummaryResponse, error) {
 	return m.createFn(req)
 }
+// List returns the mocked promotion-list result used by handler tests.
+// คืนผล list promotions แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) List(_ context.Context, query dto.PromotionListQuery) (*dto.PromotionListResponse, error) {
 	return m.listFn(query)
 }
+// GetByID returns the mocked promotion-detail result used by handler tests.
+// คืนผล promotion detail แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) GetByID(_ context.Context, id uint64) (*dto.PromotionDetailResponse, error) {
 	return m.getFn(id)
 }
+// Replace returns the mocked promotion-replace result used by handler tests.
+// คืนผล replace promotion แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Replace(_ context.Context, id uint64, req dto.PromotionReplaceRequest) (*dto.PromotionDetailResponse, error) {
 	return m.replaceFn(id, req)
 }
+// Patch returns the mocked promotion-patch result used by handler tests.
+// คืนผล patch promotion แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Patch(_ context.Context, id uint64, req dto.PromotionPatchRequest) (*dto.PromotionDetailResponse, error) {
 	return m.patchFn(id, req)
 }
+// Validate returns the mocked promotion-validation result used by handler tests.
+// คืนผล validate promotion แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Validate(_ context.Context, id uint64, req dto.PromotionValidateRequest) (*dto.PromotionValidationResponse, error) {
 	return m.validateFn(id, req)
 }
+// Activate returns the mocked promotion-activate result used by handler tests.
+// คืนผล activate promotion แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Activate(_ context.Context, id uint64, req dto.PromotionActivateRequest) (*dto.PromotionSummaryResponse, error) {
 	return m.activateFn(id, req)
 }
+// Deactivate returns the mocked promotion-deactivate result used by handler tests.
+// คืนผล deactivate promotion แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Deactivate(_ context.Context, id uint64, req dto.PromotionDeactivateRequest) (*dto.PromotionSummaryResponse, error) {
 	return m.deactivateFn(id, req)
 }
+// Usages returns the mocked promotion-usage result used by handler tests.
+// คืนผล promotion usage แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPromotionService) Usages(_ context.Context, id uint64, query dto.PromotionUsageQuery) (*dto.PromotionUsageResponse, error) {
 	return m.usagesFn(id, query)
 }
@@ -60,18 +78,26 @@ type mockPricingService struct {
 	previewFn   func(req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error)
 }
 
+// Calculate returns the mocked pricing-calculate result used by handler tests.
+// คืนผล pricing calculate แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPricingService) Calculate(_ context.Context, req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error) {
 	return m.calculateFn(req)
 }
 
+// Explain returns the mocked pricing-explain result used by handler tests.
+// คืนผล pricing explain แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPricingService) Explain(_ context.Context, req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error) {
 	return m.explainFn(req)
 }
 
+// Preview returns the mocked pricing-preview result used by handler tests.
+// คืนผล pricing preview แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockPricingService) Preview(_ context.Context, req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error) {
 	return m.previewFn(req)
 }
 
+// TestPromotionCreate_AcceptsValidPayload verifies valid promotion payloads return HTTP 201.
+// ตรวจว่า payload promotion ที่ถูกต้องจะตอบกลับ HTTP 201
 func TestPromotionCreate_AcceptsValidPayload(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPromotionService{
@@ -104,6 +130,8 @@ func TestPromotionCreate_AcceptsValidPayload(t *testing.T) {
 	assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
 }
 
+// TestPromotionCreate_CodeConflict verifies duplicate promotion codes return HTTP 409.
+// ตรวจว่า promotion code ซ้ำจะตอบกลับ HTTP 409
 func TestPromotionCreate_CodeConflict(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPromotionService{
@@ -126,6 +154,8 @@ func TestPromotionCreate_CodeConflict(t *testing.T) {
 	assert.Equal(t, "PROMOTION_CODE_ALREADY_EXISTS", body.Error.Code)
 }
 
+// TestPromotionList_InvalidStatusQuery verifies invalid promotion status filters return HTTP 400.
+// ตรวจว่า status filter ของ promotion ที่ไม่ถูกต้องจะตอบกลับ HTTP 400
 func TestPromotionList_InvalidStatusQuery(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPromotionService{
@@ -143,6 +173,8 @@ func TestPromotionList_InvalidStatusQuery(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
+// TestPricingCalculate_EmptyItems verifies empty pricing items return HTTP 422.
+// ตรวจว่า pricing request ที่ไม่มี items จะตอบกลับ HTTP 422
 func TestPricingCalculate_EmptyItems(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPricingService{
@@ -165,6 +197,8 @@ func TestPricingCalculate_EmptyItems(t *testing.T) {
 	assert.Equal(t, "EMPTY_ORDER_ITEMS", body.Error.Code)
 }
 
+// TestPricingExplain_Success verifies the explain endpoint returns HTTP 200 on success.
+// ตรวจว่า endpoint pricing explain ที่สำเร็จจะตอบกลับ HTTP 200
 func TestPricingExplain_Success(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPricingService{
@@ -192,6 +226,8 @@ func TestPricingExplain_Success(t *testing.T) {
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }
 
+// TestPromotionActivate_VersionConflict verifies activation version conflicts return HTTP 409.
+// ตรวจว่า activation ที่ version ไม่ตรงจะตอบกลับ HTTP 409
 func TestPromotionActivate_VersionConflict(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPromotionService{
@@ -210,6 +246,8 @@ func TestPromotionActivate_VersionConflict(t *testing.T) {
 	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 }
 
+// TestPromotionUsageQuery_InvalidDate verifies invalid usage-date filters return HTTP 400.
+// ตรวจว่า filter วันที่ของ promotion usage ที่ไม่ถูกต้องจะตอบกลับ HTTP 400
 func TestPromotionUsageQuery_InvalidDate(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPromotionService{
@@ -227,6 +265,8 @@ func TestPromotionUsageQuery_InvalidDate(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
+// TestPromotionList_AcceptsTimeFilter verifies the list endpoint accepts a valid activeAt filter.
+// ตรวจว่า endpoint list promotions รับ activeAt ที่ถูกต้องและตอบกลับได้ตามปกติ
 func TestPromotionList_AcceptsTimeFilter(t *testing.T) {
 	app := fiber.New()
 	svc := &mockPromotionService{

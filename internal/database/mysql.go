@@ -7,6 +7,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// OpenMySQL opens a raw sql.DB connection and verifies it with an initial ping.
+// เปิดการเชื่อมต่อ sql.DB แบบตรงและตรวจสอบด้วยการ ping ครั้งแรก
 func OpenMySQL(dsn string) (*sql.DB, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

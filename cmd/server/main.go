@@ -15,6 +15,8 @@ import (
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/service"
 )
 
+// main wires the full HTTP application, dependencies, routes, and process startup.
+// ประกอบแอป HTTP ทั้งระบบ รวม dependency, routes และการเริ่มต้น process
 func main() {
 	_ = godotenv.Load()
 

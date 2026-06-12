@@ -45,10 +45,14 @@ type promotionService struct {
 	repo repository.PromotionRepository
 }
 
+// NewPromotionService centralizes promotion lifecycle logic on top of the repository and DB transactions.
+// รวม logic วงจรชีวิตของ promotion ไว้บน repository และ transaction ของฐานข้อมูล
 func NewPromotionService(db *gorm.DB, repo repository.PromotionRepository) PromotionService {
 	return &promotionService{db: db, repo: repo}
 }
 
+// Create validates a promotion payload, writes the header row, and then persists its targets, conditions, and actions.
+// ตรวจ payload ของ promotion ก่อน แล้วค่อยบันทึกตัวหลักและกติกาย่อยทั้งหมด
 func (s *promotionService) Create(ctx context.Context, req dto.PromotionCreateRequest) (*dto.PromotionSummaryResponse, error) {
 	if err := validatePromotionBasic(req.Code, req.Scope, req.Priority, req.StartsAt, req.EndsAt); err != nil {
 		return nil, err
@@ -81,10 +85,14 @@ func (s *promotionService) Create(ctx context.Context, req dto.PromotionCreateRe
 	return promotionSummaryFromModel(promotion), nil
 }
 
+// createPromotion keeps the insert column list explicit so policy booleans are always written intentionally.
+// ระบุคอลัมน์ตอน insert แบบชัดเจนเพื่อให้ field policy ต่าง ๆ ถูกเขียนอย่างตั้งใจเสมอ
 func createPromotion(tx *gorm.DB, promotion *model.Promotion) *gorm.DB {
 	return tx.Select(promotionCreateColumns()).Create(promotion)
 }
 
+// promotionCreateColumns documents which promotion fields are treated as part of the authoritative create payload.
+// ระบุว่า field ไหนบ้างถือเป็นส่วนของ payload หลักตอนสร้าง promotion
 func promotionCreateColumns() []string {
 	return []string{
 		"Code",
@@ -105,6 +113,8 @@ func promotionCreateColumns() []string {
 	}
 }
 
+// List returns paginated promotion summaries with optional filters for status, scope, code, time, and action type.
+// คืนรายการ promotion แบบแบ่งหน้าและรองรับการกรองหลายมิติ เช่น status, scope และ action type
 func (s *promotionService) List(ctx context.Context, query dto.PromotionListQuery) (*dto.PromotionListResponse, error) {
 	page := normalizePage(query.Page)
 	limit := normalizeLimit(query.Limit)
@@ -151,6 +161,8 @@ func (s *promotionService) List(ctx context.Context, query dto.PromotionListQuer
 	}, nil
 }
 
+// GetByID returns the full promotion definition, including targets, conditions, and actions.
+// คืน promotion ฉบับเต็มพร้อม targets, conditions และ actions
 func (s *promotionService) GetByID(ctx context.Context, id uint64) (*dto.PromotionDetailResponse, error) {
 	promotion, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -159,6 +171,8 @@ func (s *promotionService) GetByID(ctx context.Context, id uint64) (*dto.Promoti
 	return promotionDetailFromModel(promotion), nil
 }
 
+// Replace performs a full overwrite of a promotion and recreates all nested rule rows in one transaction.
+// เขียนทับ promotion ทั้งชุดและสร้างกติกาย่อยใหม่ทั้งหมดภายใน transaction เดียว
 func (s *promotionService) Replace(ctx context.Context, id uint64, req dto.PromotionReplaceRequest) (*dto.PromotionDetailResponse, error) {
 	if err := validatePromotionBasic(req.Code, req.Scope, req.Priority, req.StartsAt, req.EndsAt); err != nil {
 		return nil, err
@@ -220,6 +234,8 @@ func (s *promotionService) Replace(ctx context.Context, id uint64, req dto.Promo
 	return promotionDetailFromModel(updated), nil
 }
 
+// Patch updates only the editable metadata fields without changing the promotion rules themselves.
+// อัปเดตได้เฉพาะ metadata ที่แก้บางส่วนได้โดยไม่แตะ rules ของ promotion
 func (s *promotionService) Patch(ctx context.Context, id uint64, req dto.PromotionPatchRequest) (*dto.PromotionDetailResponse, error) {
 	current, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -263,6 +279,8 @@ func (s *promotionService) Patch(ctx context.Context, id uint64, req dto.Promoti
 	return promotionDetailFromModel(updated), nil
 }
 
+// Validate checks whether the stored promotion is complete and supported enough to be activated later.
+// ตรวจว่า promotion ที่เก็บไว้ครบถ้วนและรองรับพอที่จะเปิดใช้งานต่อได้หรือไม่
 func (s *promotionService) Validate(ctx context.Context, id uint64, req dto.PromotionValidateRequest) (*dto.PromotionValidationResponse, error) {
 	promotion, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -278,6 +296,8 @@ func (s *promotionService) Validate(ctx context.Context, id uint64, req dto.Prom
 	return &dto.PromotionValidationResponse{Valid: valid, Errors: errorsList, Warnings: warnings}, nil
 }
 
+// Activate switches a validated draft promotion into ACTIVE state if its validity window still makes sense.
+// เปลี่ยน promotion จาก draft เป็น ACTIVE เมื่อผ่าน validation และช่วงเวลายังใช้งานได้
 func (s *promotionService) Activate(ctx context.Context, id uint64, req dto.PromotionActivateRequest) (*dto.PromotionSummaryResponse, error) {
 	promotion, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -300,6 +320,8 @@ func (s *promotionService) Activate(ctx context.Context, id uint64, req dto.Prom
 	return promotionSummaryFromModel(promotion), nil
 }
 
+// Deactivate turns off a promotion without deleting its rule history.
+// ปิดการใช้งาน promotion โดยไม่ลบประวัติกติกาที่เคยบันทึกไว้
 func (s *promotionService) Deactivate(ctx context.Context, id uint64, req dto.PromotionDeactivateRequest) (*dto.PromotionSummaryResponse, error) {
 	promotion, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -319,6 +341,8 @@ func (s *promotionService) Deactivate(ctx context.Context, id uint64, req dto.Pr
 	return promotionSummaryFromModel(promotion), nil
 }
 
+// Usages reports how often a promotion has been consumed and how much discount it has given out.
+// รายงานว่ามีการใช้ promotion นี้กี่ครั้งและให้ส่วนลดรวมไปเท่าไร
 func (s *promotionService) Usages(ctx context.Context, id uint64, query dto.PromotionUsageQuery) (*dto.PromotionUsageResponse, error) {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return nil, ErrPromotionNotFound
@@ -355,6 +379,8 @@ func (s *promotionService) Usages(ctx context.Context, id uint64, query dto.Prom
 	}, nil
 }
 
+// validatePromotionBasic rejects malformed promotion headers before any DB work starts.
+// กัน promotion header ที่รูปแบบผิดก่อนจะเริ่มทำงานกับฐานข้อมูล
 func validatePromotionBasic(code, scope string, priority int, startsAt, endsAt time.Time) error {
 	if code == "" || scope == "" {
 		return ErrInvalidPromotionConfig
@@ -371,6 +397,8 @@ func validatePromotionBasic(code, scope string, priority int, startsAt, endsAt t
 	return nil
 }
 
+// validatePromotionConfig rejects unsupported strategy types and mismatched target/scope combinations.
+// กัน config ที่ใช้ strategy ไม่รองรับหรือจับคู่ target/scope ไม่ถูกต้อง
 func validatePromotionConfig(scope string, targets []dto.PromotionTargetRequest, conditions []dto.PromotionConditionRequest, actions []dto.PromotionActionRequest) error {
 	if len(actions) == 0 {
 		return ErrInvalidPromotionConfig
@@ -399,6 +427,8 @@ func validatePromotionConfig(scope string, targets []dto.PromotionTargetRequest,
 	return nil
 }
 
+// validatePromotionModel checks the already-persisted promotion shape used by validate and activate endpoints.
+// ตรวจรูปแบบ promotion ที่บันทึกแล้วเพื่อใช้กับ endpoint validate และ activate
 func validatePromotionModel(promotion *model.Promotion) []string {
 	var errs []string
 	if promotion.Code == nil || *promotion.Code == "" {
@@ -429,6 +459,8 @@ func validatePromotionModel(promotion *model.Promotion) []string {
 	return errs
 }
 
+// persistPromotionRules writes the target, condition, and action rows that belong to one promotion.
+// บันทึก target, condition และ action ทั้งหมดที่ผูกกับ promotion เดียวกัน
 func persistPromotionRules(tx *gorm.DB, promotionID uint64, targets []dto.PromotionTargetRequest, conditions []dto.PromotionConditionRequest, actions []dto.PromotionActionRequest) error {
 	for _, target := range targets {
 		entity := model.PromotionTarget{
@@ -473,6 +505,8 @@ func persistPromotionRules(tx *gorm.DB, promotionID uint64, targets []dto.Promot
 	return nil
 }
 
+// promotionFromCreate converts an incoming create request into the persisted promotion model.
+// แปลงคำขอสร้าง promotion ให้เป็น model ที่พร้อมบันทึกลงฐานข้อมูล
 func promotionFromCreate(req dto.PromotionCreateRequest) *model.Promotion {
 	code := req.Code
 	return &model.Promotion{
@@ -494,6 +528,8 @@ func promotionFromCreate(req dto.PromotionCreateRequest) *model.Promotion {
 	}
 }
 
+// promotionSummaryFromModel builds the lightweight summary response from a promotion model.
+// แปลง promotion model ให้เป็น response แบบสรุปสำหรับหน้ารายการหรือผลลัพธ์สั้น
 func promotionSummaryFromModel(promotion *model.Promotion) *dto.PromotionSummaryResponse {
 	return &dto.PromotionSummaryResponse{
 		PromotionID:    promotion.ID,
@@ -513,6 +549,8 @@ func promotionSummaryFromModel(promotion *model.Promotion) *dto.PromotionSummary
 	}
 }
 
+// promotionDetailFromModel builds the full detail response including nested rules.
+// แปลง promotion model ให้เป็น response แบบเต็มพร้อมกติกาย่อยทั้งหมด
 func promotionDetailFromModel(promotion *model.Promotion) *dto.PromotionDetailResponse {
 	targets := make([]dto.PromotionTargetRequest, len(promotion.Targets))
 	for i, target := range promotion.Targets {
@@ -554,6 +592,8 @@ func promotionDetailFromModel(promotion *model.Promotion) *dto.PromotionDetailRe
 	}
 }
 
+// isAllowedScope validates whether a promotion scope is one of the supported values.
+// ตรวจว่า scope ของ promotion อยู่ในชุดค่าที่ระบบรองรับหรือไม่
 func isAllowedScope(scope string) bool {
 	switch scope {
 	case "ITEM", "CART", "COUPON", "SHIPPING":
@@ -563,6 +603,8 @@ func isAllowedScope(scope string) bool {
 	}
 }
 
+// isSupportedAction checks whether an action type is allowed by the current runtime.
+// ตรวจว่า action type นี้อยู่ในชุดที่ runtime ปัจจุบันรองรับหรือไม่
 func isSupportedAction(actionType string) bool {
 	for _, supported := range promotion.SupportedActionTypes() {
 		if supported == actionType {
@@ -572,6 +614,8 @@ func isSupportedAction(actionType string) bool {
 	return false
 }
 
+// isSupportedCondition checks whether a condition type is allowed by the current runtime.
+// ตรวจว่า condition type นี้อยู่ในชุดที่ runtime ปัจจุบันรองรับหรือไม่
 func isSupportedCondition(conditionType string) bool {
 	for _, supported := range promotion.SupportedConditionTypes() {
 		if supported == conditionType {
@@ -581,6 +625,8 @@ func isSupportedCondition(conditionType string) bool {
 	return false
 }
 
+// hasTargetType answers whether the target list contains at least one target of the requested kind.
+// ตรวจว่ารายการ targets มี target ชนิดที่ต้องการอย่างน้อยหนึ่งตัวหรือไม่
 func hasTargetType(targets []dto.PromotionTargetRequest, targetType string) bool {
 	for _, target := range targets {
 		if target.TargetType == targetType {
@@ -590,6 +636,8 @@ func hasTargetType(targets []dto.PromotionTargetRequest, targetType string) bool
 	return false
 }
 
+// defaultLogicalOperator normalizes empty logical operators to the default AND behavior.
+// กำหนดค่า logical operator ว่างให้กลับไปใช้ AND ตามค่าเริ่มต้น
 func defaultLogicalOperator(value string) string {
 	if value == "" {
 		return "AND"
@@ -597,11 +645,15 @@ func defaultLogicalOperator(value string) string {
 	return value
 }
 
+// isDuplicateKey detects MySQL duplicate-key errors so the service can return a domain conflict.
+// ตรวจจับ error key ซ้ำจาก MySQL เพื่อแปลงเป็น conflict ระดับ business
 func isDuplicateKey(err error) bool {
 	var mysqlErr *mysql.MySQLError
 	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }
 
+// derefStringPtr safely unwraps a nullable string pointer into a plain string.
+// แปลง string pointer ที่อาจเป็น nil ให้กลายเป็น string ปกติอย่างปลอดภัย
 func derefStringPtr(value *string) string {
 	if value == nil {
 		return ""
@@ -609,6 +661,8 @@ func derefStringPtr(value *string) string {
 	return *value
 }
 
+// derefString safely unwraps a nullable string pointer into a plain string.
+// แปลง string pointer ที่อาจเป็น nil ให้กลายเป็น string ปกติอย่างปลอดภัย
 func derefString(value *string) string {
 	if value == nil {
 		return ""
@@ -616,6 +670,8 @@ func derefString(value *string) string {
 	return *value
 }
 
+// stringPtr allocates a string pointer for helper use in response mapping and tests.
+// สร้าง pointer ของ string เพื่อใช้เป็น helper ในงาน map response หรือ test
 func stringPtr(value string) *string {
 	if value == "" {
 		return nil
@@ -624,6 +680,8 @@ func stringPtr(value string) *string {
 	return &copyValue
 }
 
+// normalizePage applies the service-wide default for invalid or missing page values.
+// ปรับค่า page ให้กลับไปใช้ค่าเริ่มต้นของ service เมื่อค่าที่ส่งมาไม่ถูกต้อง
 func normalizePage(page int) int {
 	if page < 1 {
 		return 1
@@ -631,6 +689,8 @@ func normalizePage(page int) int {
 	return page
 }
 
+// normalizeLimit applies the service-wide default for invalid or missing limit values.
+// ปรับค่า limit ให้กลับไปใช้ค่าเริ่มต้นของ service เมื่อค่าที่ส่งมาไม่ถูกต้อง
 func normalizeLimit(limit int) int {
 	if limit < 1 || limit > 100 {
 		return 10
@@ -638,6 +698,8 @@ func normalizeLimit(limit int) int {
 	return limit
 }
 
+// calcTotalPages computes the total number of pages from item count and page size.
+// คำนวณจำนวนหน้าทั้งหมดจากจำนวนข้อมูลรวมและขนาดต่อหน้า
 func calcTotalPages(total int64, limit int) int {
 	if limit <= 0 {
 		return 0

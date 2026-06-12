@@ -14,10 +14,14 @@ type ProductHandler struct {
 	service service.ProductService
 }
 
+// NewProductHandler binds product HTTP endpoints to the product service.
+// ผูก endpoint ด้าน product เข้ากับ service ที่ดูแล logic สินค้า
 func NewProductHandler(service service.ProductService) *ProductHandler {
 	return &ProductHandler{service: service}
 }
 
+// Create accepts a product payload and creates a new product resource.
+// รับ payload ของสินค้าแล้วสร้าง resource สินค้าใหม่
 func (h *ProductHandler) Create(c *fiber.Ctx) error {
 	var req dto.CreateProductRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -45,6 +49,8 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(res)
 }
 
+// List returns product summaries using validated query filters and pagination.
+// คืนรายการสินค้าโดยใช้ query ที่ผ่านการตรวจและข้อมูลแบ่งหน้า
 func (h *ProductHandler) List(c *fiber.Ctx) error {
 	query, err := parseProductQuery(c)
 	if err != nil {
@@ -59,6 +65,8 @@ func (h *ProductHandler) List(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// GetByID returns one product by its path parameter ID.
+// คืนข้อมูลสินค้าหนึ่งรายการจาก ID ใน path parameter
 func (h *ProductHandler) GetByID(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("productId"), 10, 64)
 	if err != nil {
@@ -76,6 +84,8 @@ func (h *ProductHandler) GetByID(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Update applies partial updates to one product resource.
+// อัปเดตข้อมูลบางส่วนของสินค้าหนึ่งรายการ
 func (h *ProductHandler) Update(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("productId"), 10, 64)
 	if err != nil {
@@ -108,6 +118,8 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// parseProductQuery validates product list filters and normalizes pagination and sort values.
+// ตรวจ query สำหรับ list products และปรับค่า page, limit, sort ให้อยู่ในรูปแบบมาตรฐาน
 func parseProductQuery(c *fiber.Ctx) (dto.ProductQuery, error) {
 	query := dto.ProductQuery{}
 
@@ -162,6 +174,8 @@ func parseProductQuery(c *fiber.Ctx) (dto.ProductQuery, error) {
 	return query, nil
 }
 
+// normalizeProductSort whitelists sortable product columns for safe ORDER BY generation.
+// จำกัดคอลัมน์ที่ใช้ sort ได้เพื่อสร้าง ORDER BY อย่างปลอดภัย
 func normalizeProductSort(raw string) (string, error) {
 	parts := strings.Fields(strings.ToLower(raw))
 	if len(parts) == 0 || len(parts) > 2 {

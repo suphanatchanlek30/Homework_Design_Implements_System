@@ -13,6 +13,8 @@ import (
 	appseed "github.com/suphanatchanlek30/homework_design_implements_system/internal/seed"
 )
 
+// main runs the database seed command with optional schema initialization.
+// รันคำสั่ง seed ฐานข้อมูลและรองรับการลง schema ก่อนถ้าผู้ใช้ระบุมา
 func main() {
 	_ = godotenv.Load()
 

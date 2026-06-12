@@ -6,6 +6,8 @@ import (
 
 type PercentageDiscountAction struct{}
 
+// Execute calculates the discount produced by a percentage-based legacy action strategy.
+// คำนวณส่วนลดจาก strategy แบบเปอร์เซ็นต์ในชุดโค้ด legacy
 func (a *PercentageDiscountAction) Execute(order *model.Order, action model.PromotionAction) int64 {
 	if action.ActionType != "PERCENTAGE_DISCOUNT" && action.ActionType != "CART_PERCENTAGE_DISCOUNT" {
 		return 0
@@ -39,6 +41,8 @@ func (a *PercentageDiscountAction) Execute(order *model.Order, action model.Prom
 
 type FixedAmountAction struct{}
 
+// Execute calculates the discount produced by a fixed-amount legacy action strategy.
+// คำนวณส่วนลดจาก strategy แบบจำนวนเงินคงที่ในชุดโค้ด legacy
 func (a *FixedAmountAction) Execute(order *model.Order, action model.PromotionAction) int64 {
 	if action.ActionType != "FIXED_AMOUNT_DISCOUNT" && action.ActionType != "CART_FIXED_AMOUNT_DISCOUNT" {
 		return 0

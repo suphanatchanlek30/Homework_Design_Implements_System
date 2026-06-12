@@ -15,10 +15,14 @@ type PromotionHandler struct {
 	service service.PromotionService
 }
 
+// NewPromotionHandler binds promotion lifecycle endpoints to the promotion service.
+// ผูก endpoint วงจรชีวิต promotion เข้ากับ service ที่ดูแลกติกาการจัดการโปร
 func NewPromotionHandler(service service.PromotionService) *PromotionHandler {
 	return &PromotionHandler{service: service}
 }
 
+// Create receives a full promotion definition and saves it as a new draft.
+// รับข้อมูล promotion แบบเต็มและบันทึกเป็นฉบับร่างใหม่
 func (h *PromotionHandler) Create(c *fiber.Ctx) error {
 	var req dto.PromotionCreateRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -33,6 +37,8 @@ func (h *PromotionHandler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(res)
 }
 
+// List returns promotion summaries with optional query-based filtering.
+// คืนรายการสรุป promotion และรองรับการกรองผ่าน query string
 func (h *PromotionHandler) List(c *fiber.Ctx) error {
 	query, err := parsePromotionListQuery(c)
 	if err != nil {
@@ -47,6 +53,8 @@ func (h *PromotionHandler) List(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// GetByID returns the full stored promotion, including targets, conditions, and actions.
+// คืนข้อมูล promotion ฉบับเต็มรวม target, condition และ action ที่บันทึกไว้
 func (h *PromotionHandler) GetByID(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -61,6 +69,8 @@ func (h *PromotionHandler) GetByID(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Replace overwrites a promotion and its nested rules using optimistic version checking.
+// เขียนทับ promotion ทั้งก้อนพร้อมกติกาย่อยทั้งหมดโดยตรวจ version ก่อนอัปเดต
 func (h *PromotionHandler) Replace(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -80,6 +90,8 @@ func (h *PromotionHandler) Replace(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Patch updates only the promotion metadata that the service allows to change partially.
+// อัปเดตเฉพาะ metadata ของ promotion ที่อนุญาตให้แก้บางส่วนได้
 func (h *PromotionHandler) Patch(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -99,6 +111,8 @@ func (h *PromotionHandler) Patch(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Validate checks whether a stored promotion is structurally ready for activation.
+// ตรวจว่า promotion ที่เก็บไว้มีโครงสร้างพร้อมสำหรับเปิดใช้งานหรือไม่
 func (h *PromotionHandler) Validate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -118,6 +132,8 @@ func (h *PromotionHandler) Validate(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Activate moves a validated promotion into ACTIVE state.
+// เปลี่ยน promotion ที่ผ่านการตรวจแล้วให้เข้าสู่สถานะ ACTIVE
 func (h *PromotionHandler) Activate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -137,6 +153,8 @@ func (h *PromotionHandler) Activate(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Deactivate turns off a promotion while keeping its definition and history.
+// ปิดการใช้งาน promotion แต่ยังเก็บนิยามและประวัติไว้ครบ
 func (h *PromotionHandler) Deactivate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -156,6 +174,8 @@ func (h *PromotionHandler) Deactivate(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// Usages returns audit data about how many times a promotion has been consumed.
+// คืนข้อมูล audit ว่า promotion นี้ถูกใช้งานไปกี่ครั้งและใช้กับอะไรบ้าง
 func (h *PromotionHandler) Usages(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("promotionId"), 10, 64)
 	if err != nil {
@@ -175,6 +195,8 @@ func (h *PromotionHandler) Usages(c *fiber.Ctx) error {
 	return c.JSON(res)
 }
 
+// parsePromotionListQuery validates list filters and converts them into the DTO used by the service.
+// ตรวจความถูกต้องของ query สำหรับ list promotions และแปลงเป็น DTO ที่ service ใช้
 func parsePromotionListQuery(c *fiber.Ctx) (dto.PromotionListQuery, error) {
 	query := dto.PromotionListQuery{}
 	if value := c.Query("status"); value != "" {
@@ -218,6 +240,8 @@ func parsePromotionListQuery(c *fiber.Ctx) (dto.PromotionListQuery, error) {
 	return query, nil
 }
 
+// parsePromotionUsageQuery validates filters for the usage audit endpoint.
+// ตรวจความถูกต้องของ query สำหรับ endpoint ดูประวัติการใช้งาน promotion
 func parsePromotionUsageQuery(c *fiber.Ctx) (dto.PromotionUsageQuery, error) {
 	query := dto.PromotionUsageQuery{}
 	if value := c.Query("userId"); value != "" {
@@ -250,6 +274,8 @@ func parsePromotionUsageQuery(c *fiber.Ctx) (dto.PromotionUsageQuery, error) {
 	return query, nil
 }
 
+// parsePagination is shared by promotion and calculation-log handlers to enforce one paging contract.
+// เป็นตัวช่วยกลางสำหรับ parse page/limit ให้หลาย handler ใช้กติกาแบ่งหน้าเดียวกัน
 func parsePagination(c *fiber.Ctx) (int, int, error) {
 	page := 1
 	limit := 10
@@ -270,6 +296,8 @@ func parsePagination(c *fiber.Ctx) (int, int, error) {
 	return page, limit, nil
 }
 
+// promotionErrorResponse centralizes HTTP mapping for promotion lifecycle errors.
+// รวมการแปลง error ฝั่ง promotion ให้เป็น HTTP response มาตรฐานไว้จุดเดียว
 func promotionErrorResponse(c *fiber.Ctx, err error) error {
 	switch err {
 	case service.ErrPromotionNotFound:
@@ -297,6 +325,8 @@ func promotionErrorResponse(c *fiber.Ctx, err error) error {
 	}
 }
 
+// isPromotionStatus whitelists accepted status filters in the list endpoint.
+// จำกัดค่า status ที่ยอมรับได้ใน endpoint list promotions
 func isPromotionStatus(value string) bool {
 	switch value {
 	case "DRAFT", "ACTIVE", "INACTIVE", "EXPIRED":
@@ -306,6 +336,8 @@ func isPromotionStatus(value string) bool {
 	}
 }
 
+// isPromotionScope whitelists accepted scope filters in the list endpoint.
+// จำกัดค่า scope ที่ยอมรับได้ใน endpoint list promotions
 func isPromotionScope(value string) bool {
 	switch value {
 	case "ITEM", "CART", "COUPON", "SHIPPING":
@@ -315,6 +347,8 @@ func isPromotionScope(value string) bool {
 	}
 }
 
+// normalizePromotionSort whitelists sortable columns to keep raw ordering safe.
+// จำกัดคอลัมน์ที่ใช้ sort ได้เพื่อให้การสร้าง order by ปลอดภัย
 func normalizePromotionSort(raw string) (string, error) {
 	parts := strings.Fields(strings.ToLower(raw))
 	if len(parts) == 0 || len(parts) > 2 {

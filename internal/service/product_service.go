@@ -33,6 +33,8 @@ type productService struct {
 	categoryRepo repository.CategoryRepository
 }
 
+// NewProductService wires product use cases to product and category repositories.
+// ประกอบ service สำหรับงานสินค้าเข้ากับ product และ category repositories
 func NewProductService(repo repository.ProductRepository, categoryRepo repository.CategoryRepository) ProductService {
 	return &productService{
 		repo:         repo,
@@ -40,6 +42,8 @@ func NewProductService(repo repository.ProductRepository, categoryRepo repositor
 	}
 }
 
+// Create validates a product payload, checks SKU uniqueness, and persists the new product.
+// ตรวจ payload ของสินค้า เช็ก SKU ซ้ำ และบันทึกสินค้าใหม่
 func (s *productService) Create(ctx context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	if req.SKU == "" {
 		return nil, ErrInvalidProductSKU
@@ -85,6 +89,8 @@ func (s *productService) Create(ctx context.Context, req dto.CreateProductReques
 	return s.toResponse(product), nil
 }
 
+// Update applies partial product changes and validates business constraints before saving.
+// อัปเดตข้อมูลสินค้าบางส่วนพร้อมตรวจข้อจำกัดทางธุรกิจก่อนบันทึก
 func (s *productService) Update(ctx context.Context, id uint64, req dto.UpdateProductRequest) (*dto.ProductResponse, error) {
 	product, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -130,6 +136,8 @@ func (s *productService) Update(ctx context.Context, id uint64, req dto.UpdatePr
 	return s.toResponse(product), nil
 }
 
+// GetByID loads one product by ID and normalizes not-found errors.
+// โหลดสินค้าหนึ่งรายการตาม ID และแปลงกรณีไม่พบให้เป็น error มาตรฐาน
 func (s *productService) GetByID(ctx context.Context, id uint64) (*dto.ProductResponse, error) {
 	product, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -138,6 +146,8 @@ func (s *productService) GetByID(ctx context.Context, id uint64) (*dto.ProductRe
 	return s.toResponse(product), nil
 }
 
+// List returns paginated products and converts them into API response items.
+// คืนรายการสินค้าแบบแบ่งหน้าและแปลงเป็น response ที่ API ใช้ได้ทันที
 func (s *productService) List(ctx context.Context, query dto.ProductQuery) (*dto.ProductListResponse, error) {
 	if query.Page < 1 {
 		query.Page = 1
@@ -169,6 +179,8 @@ func (s *productService) List(ctx context.Context, query dto.ProductQuery) (*dto
 	}, nil
 }
 
+// toResponse maps a product model into the outward-facing product response DTO.
+// แปลง product model ให้เป็น DTO สำหรับส่งออกไปยังผู้เรียก
 func (s *productService) toResponse(p *model.Product) *dto.ProductResponse {
 	return &dto.ProductResponse{
 		ID:          p.ID,

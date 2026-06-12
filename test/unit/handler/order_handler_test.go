@@ -20,18 +20,26 @@ type mockOrderService struct {
 	getFn     func(id uint64, requesterUserID *uint64) (*dto.OrderDetailResponse, error)
 }
 
+// Confirm returns the mocked order-confirm result used by handler tests.
+// คืนผล confirm order แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockOrderService) Confirm(_ context.Context, idempotencyKey string, req dto.OrderConfirmRequest) (*dto.OrderConfirmResponse, error) {
 	return m.confirmFn(idempotencyKey, req)
 }
 
+// List returns the mocked order-list result used by handler tests.
+// คืนผล list orders แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockOrderService) List(_ context.Context, query dto.OrderListQuery) (*dto.OrderListResponse, error) {
 	return m.listFn(query)
 }
 
+// GetByID returns the mocked order-detail result used by handler tests.
+// คืนผล order detail แบบ mock สำหรับใช้ใน unit test ของ handler
 func (m *mockOrderService) GetByID(_ context.Context, id uint64, requesterUserID *uint64) (*dto.OrderDetailResponse, error) {
 	return m.getFn(id, requesterUserID)
 }
 
+// TestOrderConfirm_Success verifies order confirmation returns HTTP 201 on success.
+// ตรวจว่า order confirmation ที่สำเร็จจะตอบกลับ HTTP 201
 func TestOrderConfirm_Success(t *testing.T) {
 	app := fiber.New()
 	svc := &mockOrderService{
@@ -65,6 +73,8 @@ func TestOrderConfirm_Success(t *testing.T) {
 	assert.Equal(t, fiber.StatusCreated, resp.StatusCode)
 }
 
+// TestOrderConfirm_MissingIdempotencyKey verifies missing idempotency keys return HTTP 400.
+// ตรวจว่าถ้าไม่ส่ง idempotency key ระบบจะตอบกลับ HTTP 400
 func TestOrderConfirm_MissingIdempotencyKey(t *testing.T) {
 	app := fiber.New()
 	svc := &mockOrderService{
@@ -88,6 +98,8 @@ func TestOrderConfirm_MissingIdempotencyKey(t *testing.T) {
 	assert.Equal(t, "IDEMPOTENCY_KEY_REQUIRED", body.Error.Code)
 }
 
+// TestOrderConfirm_PriceChanged verifies price mismatches return HTTP 409.
+// ตรวจว่ากรณีราคาที่ผู้ใช้ยอมรับไม่ตรงจะตอบกลับ HTTP 409
 func TestOrderConfirm_PriceChanged(t *testing.T) {
 	app := fiber.New()
 	svc := &mockOrderService{
@@ -108,6 +120,8 @@ func TestOrderConfirm_PriceChanged(t *testing.T) {
 	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
 }
 
+// TestOrderList_InvalidDateRange verifies invalid date ranges return HTTP 400.
+// ตรวจว่าช่วงวันที่ไม่ถูกต้องใน order list จะตอบกลับ HTTP 400
 func TestOrderList_InvalidDateRange(t *testing.T) {
 	app := fiber.New()
 	svc := &mockOrderService{
@@ -125,6 +139,8 @@ func TestOrderList_InvalidDateRange(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
+// TestOrderGetByID_AccessDenied verifies access-denied order detail requests return HTTP 403.
+// ตรวจว่าการขอดู order detail โดยไม่มีสิทธิ์จะตอบกลับ HTTP 403
 func TestOrderGetByID_AccessDenied(t *testing.T) {
 	app := fiber.New()
 	svc := &mockOrderService{
