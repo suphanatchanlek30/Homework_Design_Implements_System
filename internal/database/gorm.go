@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// ConnectGORM opens a GORM connection and applies the project's pool and logger defaults.
+// เปิดการเชื่อมต่อ GORM พร้อมตั้งค่า pool และ logger ตามค่าเริ่มต้นของโปรเจกต์
 func ConnectGORM(dsn string) (*gorm.DB, error) {
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),

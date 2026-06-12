@@ -18,10 +18,14 @@ type mockCalculationLogRepo struct {
 	listFn func(filter repository.CalculationLogFilter, page, limit int, sort *string) ([]model.PromotionCalculationLog, int64, error)
 }
 
+// List returns the mocked paginated calculation logs for service tests.
+// คืน calculation logs แบบ mock สำหรับใช้ใน unit test ของ service
 func (m *mockCalculationLogRepo) List(ctx context.Context, filter repository.CalculationLogFilter, page, limit int, sort *string) ([]model.PromotionCalculationLog, int64, error) {
 	return m.listFn(filter, page, limit, sort)
 }
 
+// FindByCalculationID returns the mocked calculation log chosen by the test case.
+// คืน calculation log แบบ mock ตาม calculation ID ที่ test กำหนดไว้
 func (m *mockCalculationLogRepo) FindByCalculationID(ctx context.Context, calculationID string) (*model.PromotionCalculationLog, error) {
 	return m.findFn(calculationID)
 }
@@ -30,18 +34,26 @@ type mockPreviewPricingService struct {
 	previewFn func(req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error)
 }
 
+// Calculate is unused in this test double because replay exercises preview mode only.
+// เมทอดนี้ไม่ถูกใช้ใน test double นี้เพราะการ replay ใช้เฉพาะ preview mode
 func (m *mockPreviewPricingService) Calculate(ctx context.Context, req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error) {
 	return nil, nil
 }
 
+// Explain is unused in this test double because replay exercises preview mode only.
+// เมทอดนี้ไม่ถูกใช้ใน test double นี้เพราะการ replay ใช้เฉพาะ preview mode
 func (m *mockPreviewPricingService) Explain(ctx context.Context, req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error) {
 	return nil, nil
 }
 
+// Preview returns the mocked pricing result used by replay assertions.
+// คืนผล pricing แบบ mock ที่ใช้ตรวจผลลัพธ์ของ replay
 func (m *mockPreviewPricingService) Preview(ctx context.Context, req dto.PricingCalculateRequest) (*dto.PricingResultResponse, error) {
 	return m.previewFn(req)
 }
 
+// TestCalculationLogService_ReplayMatched verifies replay success when the recalculated result matches the snapshot.
+// ตรวจว่า replay สำเร็จและถือว่า match เมื่อผลคำนวณใหม่ตรงกับ snapshot เดิม
 func TestCalculationLogService_ReplayMatched(t *testing.T) {
 	request := dto.PricingCalculateRequest{
 		Currency: "THB",

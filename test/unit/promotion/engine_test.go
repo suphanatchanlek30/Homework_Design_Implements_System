@@ -9,6 +9,8 @@ import (
 	"github.com/suphanatchanlek30/homework_design_implements_system/internal/promotion"
 )
 
+// TestCalculator_ItemAndCartPromotions verifies item-level and cart-level promotions can stack together.
+// ตรวจว่า promotion ระดับ item และระดับ cart สามารถทำงานร่วมกันได้ตามที่คาด
 func TestCalculator_ItemAndCartPromotions(t *testing.T) {
 	code1 := "P1_10"
 	code2 := "P2_MINUS_100"
@@ -70,6 +72,8 @@ func TestCalculator_ItemAndCartPromotions(t *testing.T) {
 	assert.Len(t, result.AppliedPromotions, 3)
 }
 
+// TestCalculator_SkipsInactivePromotion verifies inactive promotions are ignored by the calculator.
+// ตรวจว่า promotion ที่ inactive จะถูกเมินและไม่ถูก apply
 func TestCalculator_SkipsInactivePromotion(t *testing.T) {
 	code := "OFF"
 	calculator := promotion.NewCalculator()
@@ -98,6 +102,8 @@ func TestCalculator_SkipsInactivePromotion(t *testing.T) {
 	assert.Equal(t, int64(100000), result.FinalTotal)
 }
 
+// TestCalculator_CustomRegisteredAction verifies custom actions can be injected through the registry.
+// ตรวจว่าสามารถ inject action แบบกำหนดเองผ่าน registry ได้
 func TestCalculator_CustomRegisteredAction(t *testing.T) {
 	registry := promotion.NewRegistry()
 	registry.RegisterAction("LOYALTY_BONUS", func(input promotion.ActionContext) (int64, error) {
@@ -130,6 +136,8 @@ func TestCalculator_CustomRegisteredAction(t *testing.T) {
 	assert.Equal(t, int64(97000), result.FinalTotal)
 }
 
+// TestCalculator_NonStackablePromotionBlocksLaterPromotions verifies a non-stackable promo blocks later promos after apply.
+// ตรวจว่า promotion แบบ non-stackable จะบล็อกโปรตัวถัดไปหลังจาก apply สำเร็จ
 func TestCalculator_NonStackablePromotionBlocksLaterPromotions(t *testing.T) {
 	code1 := "ITEM_10"
 	code2 := "CART_5"
@@ -175,6 +183,8 @@ func TestCalculator_NonStackablePromotionBlocksLaterPromotions(t *testing.T) {
 	assert.Equal(t, "NON_STACKABLE_ALREADY_APPLIED", result.SkippedPromotions[0].Reason)
 }
 
+// TestCalculator_NonStackablePromotionCannotBeAppliedAfterExistingPromotion verifies non-stackable promos cannot join an existing stack.
+// ตรวจว่า promotion แบบ non-stackable ไม่สามารถเข้ามาซ้อนหลังมีโปรถูกใช้ไปแล้วได้
 func TestCalculator_NonStackablePromotionCannotBeAppliedAfterExistingPromotion(t *testing.T) {
 	code1 := "ITEM_10"
 	code2 := "CART_5"
@@ -220,6 +230,8 @@ func TestCalculator_NonStackablePromotionCannotBeAppliedAfterExistingPromotion(t
 	assert.Equal(t, "NON_STACKABLE_CANNOT_STACK", result.SkippedPromotions[0].Reason)
 }
 
+// TestCalculator_ExclusivePromotionStopsFurtherProcessing verifies exclusive promos stop the loop after apply.
+// ตรวจว่า promotion แบบ exclusive จะหยุดการพิจารณาโปรตัวถัดไปหลัง apply
 func TestCalculator_ExclusivePromotionStopsFurtherProcessing(t *testing.T) {
 	code1 := "ITEM_10"
 	code2 := "CART_5"
@@ -266,6 +278,8 @@ func TestCalculator_ExclusivePromotionStopsFurtherProcessing(t *testing.T) {
 	assert.Contains(t, result.DecisionTrace, "exclusive=true")
 }
 
+// TestCalculator_StopProcessingStopsFurtherPromotions verifies stopProcessing ends the loop after apply.
+// ตรวจว่า stopProcessing จะทำให้ลูปหยุดหลังจากโปรถูก apply สำเร็จ
 func TestCalculator_StopProcessingStopsFurtherPromotions(t *testing.T) {
 	code1 := "ITEM_STOP"
 	code2 := "CART_5"
@@ -312,14 +326,20 @@ func TestCalculator_StopProcessingStopsFurtherPromotions(t *testing.T) {
 	assert.Contains(t, result.DecisionTrace, "stop_processing=true")
 }
 
+// uint64Ptr is a small helper for building pointer-valued test fixtures.
+// helper เล็ก ๆ สำหรับสร้าง pointer ของ uint64 ใน test fixture
 func uint64Ptr(value uint64) *uint64 {
 	return &value
 }
 
+// intPtr is a small helper for building pointer-valued test fixtures.
+// helper เล็ก ๆ สำหรับสร้าง pointer ของ int ใน test fixture
 func intPtr(value int) *int {
 	return &value
 }
 
+// int64Ptr is a small helper for building pointer-valued test fixtures.
+// helper เล็ก ๆ สำหรับสร้าง pointer ของ int64 ใน test fixture
 func int64Ptr(value int64) *int64 {
 	return &value
 }

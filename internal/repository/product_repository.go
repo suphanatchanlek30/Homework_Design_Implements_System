@@ -21,6 +21,8 @@ type productRepository struct {
 	db *gorm.DB
 }
 
+// NewProductRepository builds the product repository with shared CRUD helpers and product-specific queries.
+// สร้าง product repository พร้อม helper CRUD ทั่วไปและ query เฉพาะของสินค้า
 func NewProductRepository(db *gorm.DB) ProductRepository {
 	return &productRepository{
 		BaseRepository: NewBaseRepository[model.Product](db),
@@ -28,6 +30,8 @@ func NewProductRepository(db *gorm.DB) ProductRepository {
 	}
 }
 
+// FindBySKU loads one product by SKU for uniqueness checks and product lookups.
+// โหลดสินค้าจาก SKU เพื่อใช้ตรวจความซ้ำและค้นหาสินค้า
 func (r *productRepository) FindBySKU(ctx context.Context, sku string) (*model.Product, error) {
 	var product model.Product
 	if err := r.db.WithContext(ctx).Where("sku = ?", sku).First(&product).Error; err != nil {
@@ -36,6 +40,8 @@ func (r *productRepository) FindBySKU(ctx context.Context, sku string) (*model.P
 	return &product, nil
 }
 
+// FindByIDs loads all products whose IDs appear in the provided slice.
+// โหลดสินค้าทุกตัวที่มี ID อยู่ใน slice ที่ส่งเข้ามา
 func (r *productRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Product, error) {
 	var products []model.Product
 	if len(ids) == 0 {
@@ -50,6 +56,8 @@ func (r *productRepository) FindByIDs(ctx context.Context, ids []uint64) ([]mode
 	return products, nil
 }
 
+// List returns paginated products filtered by status, category, SKU, keyword, and sort order.
+// คืนรายการสินค้าแบบแบ่งหน้าตามตัวกรอง status, category, SKU, keyword และลำดับ sort
 func (r *productRepository) List(ctx context.Context, status, categoryID, sku, keyword *string, page, limit int, sort *string) ([]model.Product, int64, error) {
 	var products []model.Product
 	var total int64

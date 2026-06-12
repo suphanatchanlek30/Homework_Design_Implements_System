@@ -48,6 +48,8 @@ type promotionRepository struct {
 	db *gorm.DB
 }
 
+// NewPromotionRepository builds the promotion repository with shared CRUD helpers and promotion-specific queries.
+// สร้าง promotion repository พร้อม helper CRUD ทั่วไปและ query เฉพาะของ promotion
 func NewPromotionRepository(db *gorm.DB) PromotionRepository {
 	return &promotionRepository{
 		BaseRepository: NewBaseRepository[model.Promotion](db),
@@ -55,14 +57,20 @@ func NewPromotionRepository(db *gorm.DB) PromotionRepository {
 	}
 }
 
+// Create inserts one promotion header row.
+// บันทึก promotion หลักหนึ่งรายการลงฐานข้อมูล
 func (r *promotionRepository) Create(ctx context.Context, promotion *model.Promotion) error {
 	return r.db.WithContext(ctx).Create(promotion).Error
 }
 
+// Update saves the latest state of one promotion row.
+// บันทึกสถานะล่าสุดของ promotion กลับลงฐานข้อมูล
 func (r *promotionRepository) Update(ctx context.Context, promotion *model.Promotion) error {
 	return r.db.WithContext(ctx).Save(promotion).Error
 }
 
+// FindActivePromotions loads active promotions with all runtime rules preloaded for calculation.
+// โหลด promotion ที่ active พร้อมกติกาทั้งหมดเพื่อใช้คำนวณใน runtime
 func (r *promotionRepository) FindActivePromotions(ctx context.Context, now time.Time) ([]model.Promotion, error) {
 	var promotions []model.Promotion
 
@@ -81,6 +89,8 @@ func (r *promotionRepository) FindActivePromotions(ctx context.Context, now time
 	return promotions, nil
 }
 
+// FindByID loads one promotion together with its nested targets, conditions, and actions.
+// โหลด promotion หนึ่งรายการพร้อม targets, conditions และ actions ที่ผูกอยู่
 func (r *promotionRepository) FindByID(ctx context.Context, id uint64) (*model.Promotion, error) {
 	var promotion model.Promotion
 	if err := r.db.WithContext(ctx).
@@ -93,6 +103,8 @@ func (r *promotionRepository) FindByID(ctx context.Context, id uint64) (*model.P
 	return &promotion, nil
 }
 
+// FindByCode loads one promotion by code together with its nested rules.
+// โหลด promotion จาก code พร้อมกติกาย่อยทั้งหมด
 func (r *promotionRepository) FindByCode(ctx context.Context, code string) (*model.Promotion, error) {
 	var promotion model.Promotion
 	if err := r.db.WithContext(ctx).
@@ -106,6 +118,8 @@ func (r *promotionRepository) FindByCode(ctx context.Context, code string) (*mod
 	return &promotion, nil
 }
 
+// List returns paginated promotion summaries filtered by business attributes and time.
+// คืนรายการสรุป promotion แบบแบ่งหน้าตามตัวกรองทางธุรกิจและช่วงเวลา
 func (r *promotionRepository) List(ctx context.Context, filter PromotionListFilter, page, limit int, sort *string) ([]PromotionSummary, int64, error) {
 	var summaries []PromotionSummary
 	var total int64
@@ -153,6 +167,8 @@ func (r *promotionRepository) List(ctx context.Context, filter PromotionListFilt
 	return summaries, total, nil
 }
 
+// FindUsages returns paginated usage records for one promotion with optional user and date filters.
+// คืนประวัติการใช้งานของ promotion หนึ่งรายการแบบแบ่งหน้าพร้อมตัวกรองผู้ใช้และช่วงเวลา
 func (r *promotionRepository) FindUsages(ctx context.Context, promotionID uint64, userID *uint64, from, to *time.Time, page, limit int) ([]model.PromotionUsage, int64, error) {
 	var usages []model.PromotionUsage
 	var total int64
